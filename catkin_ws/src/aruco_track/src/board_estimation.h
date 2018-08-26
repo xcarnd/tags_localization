@@ -30,7 +30,12 @@
 namespace aruco_track {
   bool ProcessFrame(const cv::InputArray& frame,
 		    const Settings& settings,
-		    cv::Mat& rvec, cv::Mat& tvec);
+		    cv::Mat& rvec, cv::Mat& tvec,
+		    cv::OutputArray& undistorted = cv::noArray());
+
+  void DrawAxisOnImage(cv::InputOutputArray& image,
+		       const Settings& settings,
+		       const cv::Mat& rvec, const cv::Mat& tvec);
   
   void BroadcastCameraTransform(const cv::Mat& rvec, const cv::Mat& tvec);
 }

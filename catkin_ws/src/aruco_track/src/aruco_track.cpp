@@ -29,6 +29,8 @@
 
 static aruco_track::Settings settings;
 
+static ros::Publisher* p_debug_img_pub = nullptr;
+
 void image_callback(const sensor_msgs::ImageConstPtr& msg) {
   if (!settings.camera_info_updated()) {
     ROS_INFO("Waiting for CameraInfo message");
@@ -43,7 +45,29 @@ void image_callback(const sensor_msgs::ImageConstPtr& msg) {
   }
   cv::Mat rvec;
   cv::Mat tvec;
-  if (aruco_track::ProcessFrame(img_ptr->image, settings, rvec, tvec)) {
+  
+  bool processed;
+  if (settings.publish_debug_image()) {
+    cv::Mat undistorted;
+    processed = aruco_track::ProcessFrame(img_ptr->image, settings, rvec, tvec, undistorted);
+    
+    if (processed) {
+      aruco_track::DrawAxisOnImage(undistorted,
+				   settings,
+				   rvec,
+				   tvec);
+    
+      sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", undistorted).toImageMsg();
+      p_debug_img_pub->publish(msg);
+    }
+    
+  } else {
+    
+    processed = aruco_track::ProcessFrame(img_ptr->image, settings, rvec, tvec);
+    
+  }
+  
+  if (processed) {
     aruco_track::BroadcastCameraTransform(rvec, tvec);
   }
 }
@@ -62,19 +86,27 @@ int main(int argc, char* argv[]) {
   int board_num_y;
   float board_marker_length;
   float board_marker_separation;
+  bool publish_debug_image;
   
   nh.param("markers_dict", markers_dict, static_cast<int>(cv::aruco::DICT_6X6_50));
   nh.param("board_num_x", board_num_x, 7);
   nh.param("board_num_y", board_num_y, 5);
   nh.param("board_marker_length", board_marker_length, 33.0f);
   nh.param("board_marker_separation", board_marker_separation, 6.7f);
+  nh.param("publish_debug_image", publish_debug_image, false);
   
   settings.UpdateArucoParameters(markers_dict,
 				 board_num_x, board_num_y,
 				 board_marker_length, board_marker_separation);
+  settings.set_publish_debug_image(publish_debug_image);
 
   ros::Subscriber source_sub = nh.subscribe("source", 1, image_callback);
   ros::Subscriber cam_info_sub = nh.subscribe("camera_info", 1, camera_info_callback);
+  ros::Publisher debug_img_pub;
+  if (publish_debug_image) {
+    debug_img_pub = nh.advertise<sensor_msgs::Image>("debug_image", 1);
+    p_debug_img_pub = &debug_img_pub;
+  }
 
   while (nh.ok()) {
     ros::spin();

@@ -31,6 +31,7 @@
 #include <tf2_ros/transform_broadcaster.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <opencv2/calib3d.hpp>
+#include <memory>
 
 #include "board_estimation.h"
 
@@ -44,17 +45,27 @@ namespace aruco_track {
 
   bool ProcessFrame(const cv::InputArray& frame,
 		    const Settings& settings,
-		    cv::Mat& rvec, cv::Mat& tvec) {
+		    cv::Mat& rvec, cv::Mat& tvec,
+		    cv::OutputArray& undistorted) {
+    cv::Mat helper;
+    
     // processing step:
     // 1. undistort frame image
-    Mat undistorted;
-    undistort(frame, undistorted, settings.camera_matrix(), settings.distort_coeffs());
-
+    if (undistorted.needed()) {
+      undistort(frame, undistorted, settings.camera_matrix(), settings.distort_coeffs());
+    } else {
+      undistort(frame, helper, settings.camera_matrix(), settings.distort_coeffs());      
+    }
   
     // 2. detect aruco markers
     vector<int> ids;
     vector<vector<Point2f> > corners;
-    detectMarkers(undistorted, settings.markers_dict(), corners, ids);
+    if (undistorted.needed()) {
+      detectMarkers(undistorted, settings.markers_dict(), corners, ids);
+    } else {
+      detectMarkers(helper, settings.markers_dict(), corners, ids);
+    }
+
     if (ids.size() == 0) {
       // no markers detected. skip frame.
       return false;
@@ -73,6 +84,16 @@ namespace aruco_track {
     }
 
     return true;
+  }
+
+  void DrawAxisOnImage(cv::InputOutputArray& image,
+		       const Settings& settings,
+		       const::Mat& rvec, const cv::Mat& tvec) {
+    cv::aruco::drawAxis(image,
+			settings.camera_matrix(),
+			settings.distort_coeffs(),
+			rvec, tvec,
+			settings.board_marker_length());
   }
 
   /**

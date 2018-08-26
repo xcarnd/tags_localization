@@ -27,6 +27,11 @@ namespace aruco_track {
   void Settings::UpdateArucoParameters(int markers_dict,
 				       int board_num_x, int board_num_y,
 				       float board_marker_length, float board_marker_separation) {
+    board_num_x_ = board_num_x_;
+    board_num_y_ = board_num_y_;
+    board_marker_length_ = board_marker_length;
+    board_marker_separation_ = board_marker_separation_;
+    
     markers_dict_ = cv::aruco::getPredefinedDictionary(cv::aruco::PREDEFINED_DICTIONARY_NAME(markers_dict));
     board_ = cv::aruco::GridBoard::create(board_num_x,
 					  board_num_y,
