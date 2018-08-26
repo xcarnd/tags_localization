@@ -1,0 +1,5 @@
+<launch>
+  <node name="aruco_track_rviz" pkg="rviz" type="rviz" args="-d $(find aruco_track)/resources/file_stream.rviz">
+    <remap from="~image" to="/file_stream/camera/image" />
+  </node>
+</launch>

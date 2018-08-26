@@ -1,0 +1,7 @@
+*.o
+*~
+build/
+devel/
+.catkin_workspace
+
+

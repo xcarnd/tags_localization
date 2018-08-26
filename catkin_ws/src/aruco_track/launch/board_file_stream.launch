@@ -1,0 +1,6 @@
+<launch>
+  <node name="aruco_track" pkg="aruco_track" type="aruco_track">
+    <remap from="~source" to="/file_stream/camera/image" />
+    <remap from="~camera_info" to="/file_stream/camera_info" />
+  </node>
+</launch>
