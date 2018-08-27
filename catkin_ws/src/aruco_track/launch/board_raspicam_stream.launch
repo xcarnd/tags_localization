@@ -1,0 +1,8 @@
+<launch>
+  <node name="republish" pkg="image_transport" type="republish"
+	args="compressed in:=/raspicam_node/image raw out:=/raspicam_node/image" />
+  <node name="aruco_track" pkg="aruco_track" type="aruco_track">
+    <remap from="~source" to="/raspicam_node/image" />
+    <remap from="~camera_info" to="/raspicam_node/camera_info" />
+  </node>
+</launch>
