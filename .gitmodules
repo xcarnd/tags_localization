@@ -1,0 +1,3 @@
+[submodule "catkin_ws/src/raspicam_node"]
+	path = catkin_ws/src/raspicam_node
+	url = https://github.com/xcarnd/raspicam_node.git
