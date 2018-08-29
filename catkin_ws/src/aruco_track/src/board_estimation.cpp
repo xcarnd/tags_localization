@@ -112,8 +112,8 @@ namespace aruco_track {
   
     geometry_msgs::TransformStamped transform_stamped;
     transform_stamped.header.stamp = ros::Time::now();
-    transform_stamped.header.frame_id = "world";
-    transform_stamped.child_frame_id = "camera";
+    transform_stamped.header.frame_id = "camera";
+    transform_stamped.child_frame_id = "world";
 
     transform_stamped.transform.translation.x = tvec.at<double>(0, 0);
     transform_stamped.transform.translation.y = tvec.at<double>(1, 0);

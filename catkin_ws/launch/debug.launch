@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<launch>
+  <node name="file_stream" pkg="aruco_track" type="file_stream"
+	args="_file:=$(arg source)"/>
+  <include file="$(find aruco_track)/launch/board_file_stream.launch"/>
+  <include file="$(find aruco_track)/launch/rviz_file_stream.launch"/>
+</launch>
