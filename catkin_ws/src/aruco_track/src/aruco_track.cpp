@@ -88,12 +88,33 @@ int main(int argc, char* argv[]) {
   float board_marker_separation;
   bool publish_debug_image;
   
-  nh.param("markers_dict", markers_dict, static_cast<int>(cv::aruco::DICT_6X6_50));
-  nh.param("board_num_x", board_num_x, 7);
-  nh.param("board_num_y", board_num_y, 5);
-  nh.param("board_marker_length", board_marker_length, 33.0f);
-  nh.param("board_marker_separation", board_marker_separation, 6.7f);
+  nh.param("markers_dict", markers_dict, -1);
+  nh.param("board_num_x", board_num_x, -1);
+  nh.param("board_num_y", board_num_y, -1);
+  nh.param("board_marker_length", board_marker_length, -1.f);
+  nh.param("board_marker_separation", board_marker_separation, -1.f);
   nh.param("publish_debug_image", publish_debug_image, false);
+
+  if (markers_dict < 0) {
+    ROS_ERROR("markers_dict not set properly.");
+    return -1;
+  }
+  if (board_num_x < 0) {
+    ROS_ERROR("board_num_x not set properly.");
+    return -1;
+  }
+  if (board_num_y < 0) {
+    ROS_ERROR("board_num_y not set properly.");
+    return -1;
+  }
+  if (board_marker_length < 0) {
+    ROS_ERROR("board_marker_length not set properly.");
+    return -1;
+  }
+  if (board_marker_separation < 0) {
+    ROS_ERROR("board_marker_separation not set properly.");
+    return -1;
+  }
   
   settings.UpdateArucoParameters(markers_dict,
 				 board_num_x, board_num_y,

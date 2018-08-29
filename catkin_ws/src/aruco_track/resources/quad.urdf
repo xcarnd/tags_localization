@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<robot name="quad">
+  <link name="drone">
+    <visual>
+      <geometry>
+	<mesh filename="package://aruco_track/resources/quad.stl"/>
+      </geometry>
+    </visual>
+  </link>
+</robot>
