@@ -2,14 +2,5 @@
 <launch>
   <node name="aruco_track_rviz" pkg="rviz" type="rviz" args="-d $(find aruco_track)/resources/default.rviz">
     <remap from="~image" to="/file_stream/camera/image" />
-    <param name="markers_dict" value="8"/>
-    <param name="board_num_x" value="7"/>
-    <param name="board_num_y" value="5"/>
-    <param name="board_marker_length" value="0.033"/>
-    <param name="board_mareker_separation" value="0.0067"/>
-    <param name="publish_debug_image" value="true"/>
-  </node>
-  <node pkg="robot_state_publisher" type="robot_state_publisher" name="drone">
-    <remap from="robot_description" to="$(find aruco_track)/resources/quad.urdf" />
   </node>
 </launch>

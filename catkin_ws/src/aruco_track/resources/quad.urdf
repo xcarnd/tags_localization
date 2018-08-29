@@ -3,7 +3,7 @@
   <link name="drone">
     <visual>
       <geometry>
-	<mesh filename="package://aruco_track/resources/quad.stl"/>
+	<mesh filename="package://aruco_track/resources/quad.stl" scale="0.001 0.001 0.001"/>
       </geometry>
     </visual>
   </link>

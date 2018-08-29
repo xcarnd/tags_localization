@@ -40,8 +40,8 @@ namespace aruco_track {
 
     int board_num_x_;
     int board_num_y_;
-    float board_marker_length_;
-    float board_marker_separation_;
+    double board_marker_length_;
+    double board_marker_separation_;
 
     bool publish_debug_image_;
     
@@ -49,7 +49,7 @@ namespace aruco_track {
 
     inline Settings() : publish_debug_image_(false) { }
     
-    void UpdateArucoParameters(int markers_dict, int board_num_x, int board_num_y, float board_marker_length, float board_marker_separation);
+    void UpdateArucoParameters(int markers_dict, int board_num_x, int board_num_y, double board_marker_length, double board_marker_separation);
 
     void UpdateWithCameraInfoMsg(const sensor_msgs::CameraInfoConstPtr& msg);
     
@@ -60,10 +60,10 @@ namespace aruco_track {
     inline bool camera_info_updated() const { return camera_info_updated_; }
     inline bool publish_debug_image() const { return publish_debug_image_; }
     inline void set_publish_debug_image(bool publish) { publish_debug_image_ = publish; }
-    inline float board_num_x() const { return board_num_x_; }
-    inline float board_num_y() const { return board_num_y_; }
-    inline float board_marker_length() const { return board_marker_length_; }
-    inline float board_marker_separation() const { return board_marker_separation_; }
+    inline int board_num_x() const { return board_num_x_; }
+    inline int board_num_y() const { return board_num_y_; }
+    inline double board_marker_length() const { return board_marker_length_; }
+    inline double board_marker_separation() const { return board_marker_separation_; }
   };
   
 }

@@ -66,7 +66,7 @@ void image_callback(const sensor_msgs::ImageConstPtr& msg) {
     processed = aruco_track::ProcessFrame(img_ptr->image, settings, rvec, tvec);
     
   }
-  
+
   if (processed) {
     aruco_track::BroadcastCameraTransform(rvec, tvec);
   }

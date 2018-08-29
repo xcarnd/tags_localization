@@ -97,7 +97,7 @@ namespace aruco_track {
   }
 
   /**
-   * Broadcast dynamic transform between the world coordindate and the 
+   * Broadcast dynamic transform between the board coordindate and the 
    * camera coordinate.
    */
   void BroadcastCameraTransform(const cv::Mat& rvec, const cv::Mat& tvec) {

@@ -26,7 +26,7 @@ namespace aruco_track {
 
   void Settings::UpdateArucoParameters(int markers_dict,
 				       int board_num_x, int board_num_y,
-				       float board_marker_length, float board_marker_separation) {
+				       double board_marker_length, double board_marker_separation) {
     board_num_x_ = board_num_x_;
     board_num_y_ = board_num_y_;
     board_marker_length_ = board_marker_length;

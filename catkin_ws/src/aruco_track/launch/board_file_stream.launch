@@ -1,8 +1,16 @@
 <?xml version="1.0"?>
 <launch>
-  <node name="aruco_track" pkg="aruco_track" type="aruco_track" args="_publish_debug_image:=true">
+  <node name="aruco_track" pkg="aruco_track" type="aruco_track">
     <remap from="~source" to="/file_stream/camera/image" />
     <remap from="~camera_info" to="/file_stream/camera_info" />
+    
+    <param name="~markers_dict" value="8" type="int"/>
+    <param name="~board_num_x" value="7" type="int"/>
+    <param name="~board_num_y" value="5" type="int"/>
+    <param name="~board_marker_length" value="0.033" type="double"/>
+    <param name="~board_marker_separation" value="0.0067" type="double"/>
+    <param name="~publish_debug_image" value="true" type="bool"/>
   </node>
+  
   <include file="$(find aruco_track)/launch/static.launch"/>
 </launch>
