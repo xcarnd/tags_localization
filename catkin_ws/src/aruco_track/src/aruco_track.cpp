@@ -21,56 +21,11 @@
 // SOFTWARE.
 
 #include <ros/ros.h>
-#include <cv_bridge/cv_bridge.h>
-#include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/CameraInfo.h>
-#include "board_estimation.h"
+#include "estimator.h"
 #include "settings.h"
 
 static aruco_track::Settings settings;
-
-static ros::Publisher* p_debug_img_pub = nullptr;
-
-void image_callback(const sensor_msgs::ImageConstPtr& msg) {
-  if (!settings.camera_info_updated()) {
-    ROS_INFO("Waiting for CameraInfo message");
-    return;
-  }
-  cv_bridge::CvImageConstPtr img_ptr;
-  try {
-    img_ptr = cv_bridge::toCvShare(msg, sensor_msgs::image_encodings::BGR8);
-  } catch (const cv_bridge::Exception& e) {
-    ROS_ERROR("cv_bridge exception: %s", e.what());
-    return;
-  }
-  cv::Mat rvec;
-  cv::Mat tvec;
-  
-  bool processed;
-  if (settings.publish_debug_image()) {
-    cv::Mat undistorted;
-    processed = aruco_track::ProcessFrame(img_ptr->image, settings, rvec, tvec, undistorted);
-    
-    if (processed) {
-      aruco_track::DrawAxisOnImage(undistorted,
-				   settings,
-				   rvec,
-				   tvec);
-    
-      sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", undistorted).toImageMsg();
-      p_debug_img_pub->publish(msg);
-    }
-    
-  } else {
-    
-    processed = aruco_track::ProcessFrame(img_ptr->image, settings, rvec, tvec);
-    
-  }
-
-  if (processed) {
-    aruco_track::BroadcastCameraTransform(rvec, tvec);
-  }
-}
 
 void camera_info_callback(const sensor_msgs::CameraInfoConstPtr& msg) {
   ROS_INFO("Got CameraInfo message. Updating Settings object.");
@@ -80,6 +35,8 @@ void camera_info_callback(const sensor_msgs::CameraInfoConstPtr& msg) {
 int main(int argc, char* argv[]) {
   ros::init(argc, argv, "aruco_track");
   ros::NodeHandle nh("~");
+
+  aruco_track::BoardEstimator estimator(nh, settings);
   
   int markers_dict;
   int board_num_x;
@@ -121,13 +78,10 @@ int main(int argc, char* argv[]) {
 				 board_marker_length, board_marker_separation);
   settings.set_publish_debug_image(publish_debug_image);
 
-  ros::Subscriber source_sub = nh.subscribe("source", 1, image_callback);
+  // listening for camera info
   ros::Subscriber cam_info_sub = nh.subscribe("camera_info", 1, camera_info_callback);
-  ros::Publisher debug_img_pub;
-  if (publish_debug_image) {
-    debug_img_pub = nh.advertise<sensor_msgs::Image>("debug_image", 1);
-    p_debug_img_pub = &debug_img_pub;
-  }
+
+  estimator.InitSubscribers();
 
   while (nh.ok()) {
     ros::spin();

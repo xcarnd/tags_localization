@@ -19,25 +19,47 @@
 // ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 // CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
+#ifndef _ARUCO_TRACK_ESTIMATOR_H_
+#define _ARUCO_TRACK_ESTIMATOR_H_
 
-#ifndef _ARUCO_TRACK_BOARD_ESTIMATION_H_
-#define _ARUCO_TRACK_BOARD_ESTIMATION_H_
+#include <memory>
 
+#include <ros/ros.h>
 #include <opencv2/core.hpp>
-#include <sensor_msgs/CameraInfo.h>
+#include <sensor_msgs/Image.h>
+#include <aruco_track/SetHomePosition.h>
 #include "settings.h"
 
 namespace aruco_track {
-  bool ProcessFrame(const cv::InputArray& frame,
-		    const Settings& settings,
-		    cv::Mat& rvec, cv::Mat& tvec,
-		    cv::OutputArray& undistorted = cv::noArray());
 
-  void DrawAxisOnImage(cv::InputOutputArray& image,
-		       const Settings& settings,
-		       const cv::Mat& rvec, const cv::Mat& tvec);
+  class BoardEstimator {
+  private:
+    bool home_set_;
+    const Settings& settings_;
+    
+    ros::NodeHandle& node_handle_;
+    ros::Publisher debug_img_pub_;
+
+  public:
+    BoardEstimator(ros::NodeHandle& node_handle, const Settings settings);
+    
+    bool ProcessFrame(const cv::InputArray& frame,
+		      cv::Mat& rvec, cv::Mat& tvec,
+		      cv::OutputArray& undistorted = cv::noArray());
+
+    void DrawAxisOnImage(cv::InputOutputArray& image,
+			 const cv::Mat& rvec, const cv::Mat& tvec);
   
-  void BroadcastCameraTransform(const cv::Mat& rvec, const cv::Mat& tvec);
+    void BroadcastCameraTransform(const cv::Mat& rvec, const cv::Mat& tvec);
+
+    void InitSubscribers();
+
+    // callback handlers
+    void HandleSetHomePosition(const SetHomePositionConstPtr& msg);
+    void HandleImage(const sensor_msgs::ImageConstPtr& msg);
+
+  };
+  
 }
 
 #endif

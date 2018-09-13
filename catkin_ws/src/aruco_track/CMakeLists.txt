@@ -18,6 +18,7 @@ find_package(catkin REQUIRED COMPONENTS
   rosconsole
   tf2
   tf2_ros
+  message_generation
 )
 
 ## System dependencies are found with CMake's conventions
@@ -55,11 +56,10 @@ find_package(Eigen3 REQUIRED)
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+add_message_files(
+  FILES
+  SetHomePosition.msg
+)
 
 ## Generate services in the 'srv' folder
 # add_service_files(
@@ -76,10 +76,10 @@ find_package(Eigen3 REQUIRED)
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   sensor_msgs#   std_msgs
-# )
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -114,6 +114,7 @@ catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES aruco_track
 #  CATKIN_DEPENDS cv_bridge image_transport roscpp sensor_msgs std_msgs
+    CATKIN_DEPENDS message_runtime
 #  DEPENDS system_lib
 )
 
@@ -143,7 +144,7 @@ include_directories(
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(${PROJECT_NAME}
-  src/settings.cpp src/aruco_track.cpp src/board_estimation.cpp)
+  src/settings.cpp src/aruco_track.cpp src/estimator.cpp)
 add_executable(file_stream src/file_stream.cpp)
 
 ## Rename C++ executable without prefix
