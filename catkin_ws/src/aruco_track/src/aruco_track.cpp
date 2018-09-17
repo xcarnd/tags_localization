@@ -25,10 +25,12 @@
 #include "estimator.h"
 #include "settings.h"
 
+#include <iostream>
+using namespace std;
+
 static aruco_track::Settings settings;
 
 void camera_info_callback(const sensor_msgs::CameraInfoConstPtr& msg) {
-  ROS_INFO("Got CameraInfo message. Updating Settings object.");
   settings.UpdateWithCameraInfoMsg(msg);
 }
 

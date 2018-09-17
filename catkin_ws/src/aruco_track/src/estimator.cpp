@@ -30,7 +30,8 @@
 
 #include <ros/ros.h>
 #include <cv_bridge/cv_bridge.h>
-#include <geometry_msgs/TransformStamped.h>
+#include <geometry_msgs/PoseStamped.h>
+#include <tf2/utils.h>
 #include <tf2_ros/transform_broadcaster.h>
 
 #include <opencv2/imgproc.hpp>
@@ -40,6 +41,7 @@
 #include <Eigen/Geometry>
 
 #include "estimator.h"
+#include "frame_def.h"
 
 using namespace std;
 using namespace cv;
@@ -47,18 +49,69 @@ using namespace cv::aruco;
 
 namespace aruco_track {
 
-  BoardEstimator::BoardEstimator(ros::NodeHandle& node_handle, const Settings settings)
+  class _SetHomePositionHelper {
+    friend class BoardEstimator;
+  private:
+    ros::Subscriber pose_from_board_sub_;
+    ros::Subscriber pose_from_map_sub_;
+    
+    bool last_pose_board_set_;
+    bool last_pose_map_set_;
+
+    ros::NodeHandle& nh_;
+
+  private:
+    void HandlePoseFromBoard(const geometry_msgs::PoseStampedConstPtr& msg) {
+      last_pose_board = *msg;
+      last_pose_board_set_ = true;
+      
+      Join();
+    }
+
+    void HandlePoseFromMap(const geometry_msgs::PoseStampedConstPtr& msg) {
+      last_pose_map = *msg;
+      last_pose_map_set_ = true;
+      
+      Join();
+    }
+
+    void Join() {
+      if (last_pose_board_set_ && last_pose_map_set_) {
+        ROS_INFO("Pose from board and pose from map set.");
+        pose_from_board_sub_.shutdown();
+        pose_from_map_sub_.shutdown();
+      }
+    }
+    
+  public:
+    geometry_msgs::PoseStamped last_pose_board;
+    geometry_msgs::PoseStamped last_pose_map;
+
+    _SetHomePositionHelper(ros::NodeHandle& nh)
+      : last_pose_board_set_(false), last_pose_map_set_(false), nh_(nh) {}
+
+    void ListenForPoses() {
+      last_pose_board_set_ = false;
+      last_pose_map_set_ = false;
+      pose_from_board_sub_ = nh_.subscribe("/aruco_track/pose", 1,
+					   &_SetHomePositionHelper::HandlePoseFromBoard, this);
+      pose_from_map_sub_ = nh_.subscribe("/marvos/local_position/pose", 1,
+					 &_SetHomePositionHelper::HandlePoseFromMap, this);
+      ROS_INFO("Subscribed to /aruco_track/pose & /mavros_local_position/pose");
+    }
+  };
+
+  BoardEstimator::BoardEstimator(ros::NodeHandle& node_handle, const Settings& settings)
     : home_set_(false),
       settings_(settings),
       node_handle_(node_handle) {
-    if (this->settings_.publish_debug_image()) {
-      debug_img_pub_ = node_handle_.advertise<sensor_msgs::Image>("debug_image", 1);
-    }
+    debug_img_pub_ = node_handle_.advertise<sensor_msgs::Image>("debug_image", 1);
+    pose_publisher_ = node_handle_.advertise<geometry_msgs::PoseStamped>("pose", 1);
   }
 
   void BoardEstimator::HandleImage(const sensor_msgs::ImageConstPtr& msg) {
     if (!settings_.camera_info_updated()) {
-      ROS_INFO("Waiting for CameraInfo message");
+      ROS_INFO("Waiting for CameraInfo message.");
       return;
     }
     cv_bridge::CvImageConstPtr img_ptr;
@@ -77,12 +130,10 @@ namespace aruco_track {
       processed = this->ProcessFrame(img_ptr->image, rvec, tvec, undistorted);
     
       if (processed) {
-	this->DrawAxisOnImage(undistorted,
-				  rvec,
-				  tvec);
+      	this->DrawAxisOnImage(undistorted, rvec, tvec);
     
-	sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", undistorted).toImageMsg();
-	debug_img_pub_.publish(msg);
+	      sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", undistorted).toImageMsg();
+	      debug_img_pub_.publish(msg);
       }
     
     } else {
@@ -92,11 +143,20 @@ namespace aruco_track {
     }
 
     if (processed) {
-      this->BroadcastCameraTransform(rvec, tvec);
+      geometry_msgs::PoseStamped pose = this->EstimatePose(rvec, tvec);
+      pose_publisher_.publish(pose);
     }
   }
 
   void BoardEstimator::HandleSetHomePosition(const SetHomePositionConstPtr& msg) {
+    // when starts setting home position, the estimator will first collect enough state estimations,
+    // both from board estimation and map local position.
+    //
+    // then the average of the collection information is calculated. the average will then be used
+    // as a reference as home position.
+    home_set_ = false;
+    helper_ = std::make_shared<_SetHomePositionHelper>(node_handle_);
+    helper_->ListenForPoses();
   }
 
   bool BoardEstimator::ProcessFrame(const cv::InputArray& frame,
@@ -154,42 +214,41 @@ namespace aruco_track {
    * Broadcast dynamic transform between the board coordindate and the 
    * camera coordinate.
    */
-  void BoardEstimator::BroadcastCameraTransform(const cv::Mat& rvec, const cv::Mat& tvec) {
-    static tf2_ros::TransformBroadcaster br;
-  
+  geometry_msgs::PoseStamped BoardEstimator::EstimatePose(const cv::Mat& rvec, const cv::Mat& tvec) {
     static cv::Mat rot_mat;
 
     cv::Rodrigues(rvec, rot_mat);
     Eigen::Map<Eigen::Matrix<double, 3, 3, Eigen::RowMajor> > mat(rot_mat.ptr<double>());
 
     Eigen::Quaternion<double> q(mat);
-  
-    geometry_msgs::TransformStamped transform_stamped;
-    transform_stamped.header.stamp = ros::Time::now();
-    transform_stamped.header.frame_id = "camera";
-    transform_stamped.child_frame_id = "board";
 
-    transform_stamped.transform.translation.x = tvec.at<double>(0, 0);
-    transform_stamped.transform.translation.y = tvec.at<double>(1, 0);
-    transform_stamped.transform.translation.z = tvec.at<double>(2, 0);
-    transform_stamped.transform.rotation.x = q.x();
-    transform_stamped.transform.rotation.y = q.y();
-    transform_stamped.transform.rotation.z = q.z();
-    transform_stamped.transform.rotation.w = q.w();
+    geometry_msgs::PoseStamped msg;
+    msg.header.stamp = ros::Time::now();
+    msg.header.frame_id = FRAME_BOARD;
 
-    br.sendTransform(transform_stamped);
+    msg.pose.position.x = tvec.at<double>(0, 0);
+    msg.pose.position.y = tvec.at<double>(1, 0);
+    msg.pose.position.z = tvec.at<double>(2, 0);
+    msg.pose.orientation.x = q.x();
+    msg.pose.orientation.y = q.y();
+    msg.pose.orientation.z = q.z();
+    msg.pose.orientation.w = q.w();
+
+    return msg;
   }
 
   void BoardEstimator::InitSubscribers() {
     // listening for image
-    ros::Subscriber source_sub =
+    source_sub_ =
       node_handle_.subscribe("source", 1,
 			     &BoardEstimator::HandleImage, this);
+    ROS_INFO("Listening for /aruco_track/source topic.");
     
     // listening for request of setting "home position"
-    ros::Subscriber set_home_position_req_sub =
+    set_home_position_sub_ =
       node_handle_.subscribe("set_home_position", 1,
 			     &BoardEstimator::HandleSetHomePosition, this);
+    ROS_INFO("Listening for /aruco_track/set_home_position topic.");
   
   }
 

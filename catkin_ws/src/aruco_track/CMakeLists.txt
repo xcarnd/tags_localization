@@ -144,7 +144,7 @@ include_directories(
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(${PROJECT_NAME}
-  src/settings.cpp src/aruco_track.cpp src/estimator.cpp)
+  src/settings.cpp src/aruco_track.cpp src/estimator.cpp src/frame_def.cpp)
 add_executable(file_stream src/file_stream.cpp)
 
 ## Rename C++ executable without prefix

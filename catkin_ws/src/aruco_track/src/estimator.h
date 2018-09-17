@@ -24,13 +24,18 @@
 
 #include <memory>
 
-#include <ros/ros.h>
 #include <opencv2/core.hpp>
+
+#include <ros/ros.h>
+#include <geometry_msgs/PoseStamped.h>
 #include <sensor_msgs/Image.h>
 #include <aruco_track/SetHomePosition.h>
+
 #include "settings.h"
 
 namespace aruco_track {
+
+  class _SetHomePositionHelper;
 
   class BoardEstimator {
   private:
@@ -40,8 +45,15 @@ namespace aruco_track {
     ros::NodeHandle& node_handle_;
     ros::Publisher debug_img_pub_;
 
+    std::shared_ptr<_SetHomePositionHelper> helper_;
+
+    ros::Publisher pose_publisher_;
+
+    ros::Subscriber source_sub_;
+    ros::Subscriber set_home_position_sub_;
+
   public:
-    BoardEstimator(ros::NodeHandle& node_handle, const Settings settings);
+    BoardEstimator(ros::NodeHandle& node_handle, const Settings& settings);
     
     bool ProcessFrame(const cv::InputArray& frame,
 		      cv::Mat& rvec, cv::Mat& tvec,
@@ -50,13 +62,14 @@ namespace aruco_track {
     void DrawAxisOnImage(cv::InputOutputArray& image,
 			 const cv::Mat& rvec, const cv::Mat& tvec);
   
-    void BroadcastCameraTransform(const cv::Mat& rvec, const cv::Mat& tvec);
-
     void InitSubscribers();
 
     // callback handlers
     void HandleSetHomePosition(const SetHomePositionConstPtr& msg);
     void HandleImage(const sensor_msgs::ImageConstPtr& msg);
+
+  private:
+    geometry_msgs::PoseStamped EstimatePose(const cv::Mat& rvec, const cv::Mat& tvec);
 
   };
   
