@@ -163,9 +163,9 @@ namespace aruco_track {
       last_pose_map_set_ = false;
       pose_from_board_sub_ = nh_.subscribe("/aruco_track/pose", 1,
 					   &_SetHomePositionHelper::HandlePoseFromBoard, this);
-      pose_from_map_sub_ = nh_.subscribe("/marvos/local_position/pose", 1,
+      pose_from_map_sub_ = nh_.subscribe("reference_pose", 1,
 					 &_SetHomePositionHelper::HandlePoseFromMap, this);
-      ROS_INFO("Subscribed to /aruco_track/pose & /mavros_local_position/pose");
+      ROS_INFO("Subscribed to /aruco_track/pose & /aruco_track/reference_pose");
     }
   };
 

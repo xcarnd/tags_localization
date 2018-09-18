@@ -6,6 +6,7 @@
   <node name="aruco_track" pkg="aruco_track" type="aruco_track" args="_publish_debug_image:=true">
     <remap from="~source" to="/raspicam_node/image" />
     <remap from="~camera_info" to="/raspicam_node/camera_info" />
+    <remap from="~reference_pose" to="/mavros/local_position/pose">
 
     <param name="~markers_dict" value="8" type="int"/>
     <param name="~board_num_x" value="7" type="int"/>
