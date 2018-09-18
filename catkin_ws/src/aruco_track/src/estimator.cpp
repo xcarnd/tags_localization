@@ -31,8 +31,9 @@
 #include <ros/ros.h>
 #include <cv_bridge/cv_bridge.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/TransformStamped.h>
 #include <tf2/utils.h>
-#include <tf2_ros/transform_broadcaster.h>
+#include <tf2_ros/static_transform_broadcaster.h>
 
 #include <opencv2/imgproc.hpp>
 #include <opencv2/aruco.hpp>
@@ -52,6 +53,8 @@ namespace aruco_track {
   class _SetHomePositionHelper {
     friend class BoardEstimator;
   private:
+    geometry_msgs::PoseStamped last_pose_board_;
+    geometry_msgs::PoseStamped last_pose_map_;
     ros::Subscriber pose_from_board_sub_;
     ros::Subscriber pose_from_map_sub_;
     
@@ -60,16 +63,18 @@ namespace aruco_track {
 
     ros::NodeHandle& nh_;
 
+    ros::StaticTransformBroadcaster& static_transform_broadcaster_;
+
   private:
     void HandlePoseFromBoard(const geometry_msgs::PoseStampedConstPtr& msg) {
-      last_pose_board = *msg;
+      last_pose_board_ = *msg;
       last_pose_board_set_ = true;
       
       Join();
     }
 
     void HandlePoseFromMap(const geometry_msgs::PoseStampedConstPtr& msg) {
-      last_pose_map = *msg;
+      last_pose_map_ = *msg;
       last_pose_map_set_ = true;
       
       Join();
@@ -78,17 +83,80 @@ namespace aruco_track {
     void Join() {
       if (last_pose_board_set_ && last_pose_map_set_) {
         ROS_INFO("Pose from board and pose from map set.");
+        // define the origin of map frame to be somewhere with xyz = 0 and rpy = 0
+        // define the origin of board frame to be the lower left corner of the tag board, z point outwards.
+        //
+        // pose board contains transformation information for camera pose in board frame.
+        //
+        // pose map contains transformation information for fcu pose in map frame.
+        //
+        // and now we want to solve this problem: given a the camera pose in board frame, what would 
+        // the pose of the fcu in map frame?
+        //
+        // here is my solution:
+        // when set_home_position message is received, define the last camera pose as the origin
+        // of the frame 'camera_base'. we then immediately can establish a static tf transform between 
+        // the board frame and camera_base frame.
+        //
+        // suppose the transform from camera_base frame to map frame is T_c_m. given a pose P in camera_base frame,
+        // we can transform it into map frame by appling T_c_m on P. if we apply T_c_m on the origin point
+        // of camera_base frame, we'll get the pose for camera in map frame when we received the last pose board
+        // message.
+        //
+        // and now we have pose of camera in map frame and pose of fcu in map frame. Their centers won't
+        // coincide so their reading won't be the same, but the transformation between them is fixed 
+        // (noted as T_cam_fcu) and won't changed over time.
+        //
+        // although we might not solve T_c_m and T_cam_fcu directly, but since they're all fixed transform, 
+        // we can combine them as a whole, i.e, T_cam2fcu = T_cam_fcu * T_c_m. This is a transform from pose of 
+        // camera in camera_base frame to pose of fcu in map frame. This transform is solvable because we have 
+        // a pair of known input and output: the origin of the camera input and the pose of fcu in map.
+        //
+        // so, together with transform from board frame to camera_base frame, we can now transform any 
+        // camera pose in board to fcu in map.
+        std::vector<geometry_msgs::TransformStamped> static_tfs;
+        long stamp = ros::Time::now();
+
+        // since we know the pose of camera_base in board, the same pose can be used as the transform from camera_base to board.
+        geometry_msgs::TransformStamped tf_board_camera_base;
+        tf_board_camera_base.header.stamp = stamp;
+        tf_board_camera_base.header.frame_id = "camera_base";
+        tf_board_camera_base.child_frame_id = "board";
+        tf_board_camera_base.transform.translation.x = last_pose_board_.position.x;
+        tf_board_camera_base.transform.translation.y = last_pose_board_.position.y;
+        tf_board_camera_base.transform.translation.z = last_pose_board_.position.y;
+        tf_board_camera_base.transform.rotation.x = last_pose_board_.quaternion.x;
+        tf_board_camera_base.transform.rotation.y = last_pose_board_.quaternion.y;
+        tf_board_camera_base.transform.rotation.z = last_pose_board_.quaternion.z;
+        tf_board_camera_base.transform.rotation.w = last_pose_board_.quaternion.w;
+
+        static_tfs.push_back(tf_board_camera_base);
+
+        // and the transform from pose in camera_base to fcu in map.
+        geometry_msgs::TransformStamped tf_camera_base_map;
+        tf_camera_base_map.header.stamp = stamp;
+        tf_camera_base_map.header.frame_id = "camera_base";
+        tf_camera_base_map.child_frame_id = "map";
+        tf_camera_base_map.transform.translation.x = last_pose_map_.position.x;
+        tf_camera_base_map.transform.translation.y = last_pose_map_.position.y;
+        tf_camera_base_map.transform.translation.z = last_pose_map_.position.z;
+        tf_camera_base_map.transform.rotation.x = last_pose_map_.quaternion.x;
+        tf_camera_base_map.transform.rotation.y = last_pose_map_.quaternion.y;
+        tf_camera_base_map.transform.rotation.z = last_pose_map_.quaternion.z;
+        tf_camera_base_map.transform.rotation.w = last_pose_map_.quaternion.w;
+
+        static_tfs.push_back(tf_camera_base_map);
+
+        static_transform_broadcaster_.sendTransform(static_tfs);
+
         pose_from_board_sub_.shutdown();
         pose_from_map_sub_.shutdown();
       }
     }
     
   public:
-    geometry_msgs::PoseStamped last_pose_board;
-    geometry_msgs::PoseStamped last_pose_map;
-
-    _SetHomePositionHelper(ros::NodeHandle& nh)
-      : last_pose_board_set_(false), last_pose_map_set_(false), nh_(nh) {}
+    _SetHomePositionHelper(ros::NodeHandle& nh, tf2_ros::StaticTransformBroadcaster& static_transform_broadcaster_)
+      : last_pose_board_set_(false), last_pose_map_set_(false), nh_(nh), static_transform_broadcaster_(static_transform_broadcaster_) {}
 
     void ListenForPoses() {
       last_pose_board_set_ = false;
@@ -155,7 +223,7 @@ namespace aruco_track {
     // then the average of the collection information is calculated. the average will then be used
     // as a reference as home position.
     home_set_ = false;
-    helper_ = std::make_shared<_SetHomePositionHelper>(node_handle_);
+    helper_ = std::make_shared<_SetHomePositionHelper>(node_handle_, static_transform_broadcaster_);
     helper_->ListenForPoses();
   }
 

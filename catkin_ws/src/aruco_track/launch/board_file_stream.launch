@@ -11,6 +11,4 @@
     <param name="~board_marker_separation" value="0.0067" type="double"/>
     <param name="~publish_debug_image" value="true" type="bool"/>
   </node>
-  
-  <include file="$(find aruco_track)/launch/static.launch"/>
 </launch>

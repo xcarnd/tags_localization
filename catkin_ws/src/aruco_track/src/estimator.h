@@ -27,6 +27,7 @@
 #include <opencv2/core.hpp>
 
 #include <ros/ros.h>
+#include <tf2_ros/static_transform_broadcaster.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <sensor_msgs/Image.h>
 #include <aruco_track/SetHomePosition.h>
@@ -52,6 +53,7 @@ namespace aruco_track {
     ros::Subscriber source_sub_;
     ros::Subscriber set_home_position_sub_;
 
+    tf2_ros::StaticTransformBroadcaster static_transform_broadcaster_;
   public:
     BoardEstimator(ros::NodeHandle& node_handle, const Settings& settings);
     
