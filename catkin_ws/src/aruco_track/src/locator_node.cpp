@@ -26,7 +26,7 @@
 #include <tf2/convert.h>
 
 #include "locator_node.hpp"
-#include "frame_def.h"
+#include "frame_def.hpp"
 
 namespace aruco_track {
 

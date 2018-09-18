@@ -20,8 +20,8 @@
 // CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef _ARUCO_TRACK_SETTINGS_H_
-#define _ARUCO_TRACK_SETTINGS_H_
+#ifndef _ARUCO_TRACK_SETTINGS_HPP_
+#define _ARUCO_TRACK_SETTINGS_HPP_
 
 #include <opencv2/core.hpp>
 #include <opencv2/aruco.hpp>

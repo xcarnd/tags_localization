@@ -20,7 +20,7 @@
 // CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "frame_def.h"
+#include "frame_def.hpp"
 
 namespace aruco_track {
 
@@ -29,5 +29,5 @@ namespace aruco_track {
   const std::string FRAME_BOARD("board");
 
   const std::string FRAME_CAMERA_BASE("camera_base");
-  
+
 }

@@ -19,8 +19,8 @@
 // ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 // CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
-#ifndef _ARUCO_TRACK_ESTIMATOR_H_
-#define _ARUCO_TRACK_ESTIMATOR_H_
+#ifndef _ARUCO_TRACK_ESTIMATOR_HPP_
+#define _ARUCO_TRACK_ESTIMATOR_HPP_
 
 #include <memory>
 
@@ -32,7 +32,7 @@
 #include <sensor_msgs/Image.h>
 #include <aruco_track/SetHomePosition.h>
 
-#include "settings.h"
+#include "settings.hpp"
 
 namespace aruco_track {
 

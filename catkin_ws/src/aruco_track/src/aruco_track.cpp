@@ -20,12 +20,14 @@
 // CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <iostream>
+
 #include <ros/ros.h>
 #include <sensor_msgs/CameraInfo.h>
-#include "estimator.h"
-#include "settings.h"
 
-#include <iostream>
+#include "estimator.hpp"
+#include "settings.hpp"
+
 using namespace std;
 
 static aruco_track::Settings settings;

@@ -41,8 +41,8 @@
 
 #include <Eigen/Geometry>
 
-#include "estimator.h"
-#include "frame_def.h"
+#include "estimator.hpp"
+#include "frame_def.hpp"
 
 using namespace std;
 using namespace cv;

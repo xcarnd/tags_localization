@@ -24,8 +24,8 @@
 #include <iomanip>
 #include <tf2/utils.h>
 
-#ifndef _ARUCO_TRACK_DEBUG_H_
-#define _ARUCO_TRACK_DEBUG_H_
+#ifndef _ARUCO_TRACK_DEBUG_HPP_
+#define _ARUCO_TRACK_DEBUG_HPP_
 
 namespace aruco_track {
 
