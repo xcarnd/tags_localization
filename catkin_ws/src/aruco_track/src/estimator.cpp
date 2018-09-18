@@ -63,7 +63,7 @@ namespace aruco_track {
 
     ros::NodeHandle& nh_;
 
-    ros::StaticTransformBroadcaster& static_transform_broadcaster_;
+    tf2_ros::StaticTransformBroadcaster& static_transform_broadcaster_;
 
   private:
     void HandlePoseFromBoard(const geometry_msgs::PoseStampedConstPtr& msg) {
@@ -115,20 +115,20 @@ namespace aruco_track {
         // so, together with transform from board frame to camera_base frame, we can now transform any 
         // camera pose in board to fcu in map.
         std::vector<geometry_msgs::TransformStamped> static_tfs;
-        long stamp = ros::Time::now();
+	ros::Time stamp = ros::Time::now();
 
         // since we know the pose of camera_base in board, the same pose can be used as the transform from camera_base to board.
         geometry_msgs::TransformStamped tf_board_camera_base;
         tf_board_camera_base.header.stamp = stamp;
         tf_board_camera_base.header.frame_id = "camera_base";
         tf_board_camera_base.child_frame_id = "board";
-        tf_board_camera_base.transform.translation.x = last_pose_board_.position.x;
-        tf_board_camera_base.transform.translation.y = last_pose_board_.position.y;
-        tf_board_camera_base.transform.translation.z = last_pose_board_.position.y;
-        tf_board_camera_base.transform.rotation.x = last_pose_board_.quaternion.x;
-        tf_board_camera_base.transform.rotation.y = last_pose_board_.quaternion.y;
-        tf_board_camera_base.transform.rotation.z = last_pose_board_.quaternion.z;
-        tf_board_camera_base.transform.rotation.w = last_pose_board_.quaternion.w;
+        tf_board_camera_base.transform.translation.x = last_pose_board_.pose.position.x;
+        tf_board_camera_base.transform.translation.y = last_pose_board_.pose.position.y;
+        tf_board_camera_base.transform.translation.z = last_pose_board_.pose.position.y;
+        tf_board_camera_base.transform.rotation.x = last_pose_board_.pose.orientation.x;
+        tf_board_camera_base.transform.rotation.y = last_pose_board_.pose.orientation.y;
+        tf_board_camera_base.transform.rotation.z = last_pose_board_.pose.orientation.z;
+        tf_board_camera_base.transform.rotation.w = last_pose_board_.pose.orientation.w;
 
         static_tfs.push_back(tf_board_camera_base);
 
@@ -137,13 +137,13 @@ namespace aruco_track {
         tf_camera_base_map.header.stamp = stamp;
         tf_camera_base_map.header.frame_id = "camera_base";
         tf_camera_base_map.child_frame_id = "map";
-        tf_camera_base_map.transform.translation.x = last_pose_map_.position.x;
-        tf_camera_base_map.transform.translation.y = last_pose_map_.position.y;
-        tf_camera_base_map.transform.translation.z = last_pose_map_.position.z;
-        tf_camera_base_map.transform.rotation.x = last_pose_map_.quaternion.x;
-        tf_camera_base_map.transform.rotation.y = last_pose_map_.quaternion.y;
-        tf_camera_base_map.transform.rotation.z = last_pose_map_.quaternion.z;
-        tf_camera_base_map.transform.rotation.w = last_pose_map_.quaternion.w;
+        tf_camera_base_map.transform.translation.x = last_pose_map_.pose.position.x;
+        tf_camera_base_map.transform.translation.y = last_pose_map_.pose.position.y;
+        tf_camera_base_map.transform.translation.z = last_pose_map_.pose.position.z;
+        tf_camera_base_map.transform.rotation.x = last_pose_map_.pose.orientation.x;
+        tf_camera_base_map.transform.rotation.y = last_pose_map_.pose.orientation.y;
+        tf_camera_base_map.transform.rotation.z = last_pose_map_.pose.orientation.z;
+        tf_camera_base_map.transform.rotation.w = last_pose_map_.pose.orientation.w;
 
         static_tfs.push_back(tf_camera_base_map);
 
