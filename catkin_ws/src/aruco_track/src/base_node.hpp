@@ -20,14 +20,22 @@
 // CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "frame_def.h"
+#ifndef _ARUCO_TRACK_BASE_NODE_HPP_
+#define _ARUCO_TRACK_BASE_NODE_HPP_
+
+#include <string>
+
+#include <ros/ros.h>
 
 namespace aruco_track {
 
-  const std::string FRAME_MAP("map");
-  
-  const std::string FRAME_BOARD("board");
+    class BaseNode {
+    protected:
+        inline BaseNode(int argc, char **argv, const std::string& node_name) {
+            ros::init(argc, argv, node_name);
+        }
+    };
 
-  const std::string FRAME_CAMERA_BASE("camera_base");
-  
 }
+
+#endif

@@ -20,14 +20,37 @@
 // CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "frame_def.h"
+#include <tf2_ros/transform_listener.h>
+#include <geometry_msgs/PoseStamped.h>
+
+#include "base_node.hpp"
+
+#ifndef _ARUCO_TRACK_LOCATOR_NODE_HPP_
+#define _ARUCO_TRACK_LOCATOR_NODE_HPP_
 
 namespace aruco_track {
 
-  const std::string FRAME_MAP("map");
-  
-  const std::string FRAME_BOARD("board");
+    class LocatorNode : BaseNode {
+    private:
+        ros::NodeHandle nh_;
+        tf2_ros::Buffer tf_buffer_;
+        tf2_ros::TransformListener tf_listener_;
 
-  const std::string FRAME_CAMERA_BASE("camera_base");
-  
+        ros::Subscriber pose_board_sub_;
+
+        ros::Publisher pose_map_pub_;
+    private:
+        void HandleEstimatedPose(const geometry_msgs::PoseStampedConstPtr& msg);
+    public:
+        LocatorNode(int argv, char **argv, const std::string& node_name = std::string("locator"));
+
+        /**
+         * Run the node until exit.
+         */
+        int Run();
+    };
+
 }
+
+#endif
+

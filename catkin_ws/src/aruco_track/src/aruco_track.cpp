@@ -88,5 +88,7 @@ int main(int argc, char* argv[]) {
   while (nh.ok()) {
     ros::spin();
   }
+
+  return 0;
   
 }

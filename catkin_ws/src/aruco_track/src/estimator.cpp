@@ -161,7 +161,7 @@ namespace aruco_track {
     void ListenForPoses() {
       last_pose_board_set_ = false;
       last_pose_map_set_ = false;
-      pose_from_board_sub_ = nh_.subscribe("/aruco_track/pose", 1,
+      pose_from_board_sub_ = nh_.subscribe("board_pose", 1,
 					   &_SetHomePositionHelper::HandlePoseFromBoard, this);
       pose_from_map_sub_ = nh_.subscribe("reference_pose", 1,
 					 &_SetHomePositionHelper::HandlePoseFromMap, this);
@@ -174,7 +174,7 @@ namespace aruco_track {
       settings_(settings),
       node_handle_(node_handle) {
     debug_img_pub_ = node_handle_.advertise<sensor_msgs::Image>("debug_image", 1);
-    pose_publisher_ = node_handle_.advertise<geometry_msgs::PoseStamped>("pose", 1);
+    pose_publisher_ = node_handle_.advertise<geometry_msgs::PoseStamped>("board_pose", 1);
   }
 
   void BoardEstimator::HandleImage(const sensor_msgs::ImageConstPtr& msg) {

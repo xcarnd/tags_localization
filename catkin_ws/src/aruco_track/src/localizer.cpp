@@ -20,14 +20,14 @@
 // CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "frame_def.h"
+#include "locator_node.hpp"
 
-namespace aruco_track {
+using namespace aruco_track;
 
-  const std::string FRAME_MAP("map");
-  
-  const std::string FRAME_BOARD("board");
+int main(int argv, char **argc) {
 
-  const std::string FRAME_CAMERA_BASE("camera_base");
-  
+    Locator locator(argv, argc);
+
+    return locator.run();
+    
 }

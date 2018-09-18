@@ -27,9 +27,9 @@
 
 namespace aruco_track {
 
-  extern const std::string FRAME_WORLD;
   extern const std::string FRAME_MAP;
   extern const std::string FRAME_BOARD;
+  extern const std::string FRAME_CAMERA_BASE;
   
 }
 
