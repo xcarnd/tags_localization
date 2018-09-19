@@ -23,28 +23,28 @@
 #include <stdexcept>
 
 #include <ros/ros.h>
-#include <tf2/convert.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 #include "locator_node.hpp"
 #include "frame_def.hpp"
 
 namespace aruco_track {
 
-    LocatorNode::LocatorNode(int argv, char **argv, const std::string& node_name) 
-    : nh_(std::NodeHandle("~")),
-      tf_listener_(tf2_ros::TransformListener(tf_buffer_)) {
+    LocatorNode::LocatorNode(int argc, char **argv, const std::string& node_name) 
+    : BaseNode(argc, argv, node_name),
+      nh_(ros::NodeHandle("~")),
+      tf_listener_(tf_buffer_) {
         pose_board_sub_ = nh_.subscribe("/aruco_track/board_pose", 1, &LocatorNode::HandleEstimatedPose, this);
         pose_map_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("pose", 1);
     }
 
-    void LocatorNode::HandleEstimatedPose(const geometry_msgs::PoseStampedConstStr& msg) {
+    void LocatorNode::HandleEstimatedPose(const geometry_msgs::PoseStampedConstPtr& msg) {
         geometry_msgs::TransformStamped transform_stamped;
         try {
             transform_stamped = tf_buffer_.lookupTransform(FRAME_MAP, FRAME_BOARD, ros::Time(0));
         } catch (tf2::TransformException &ex) {
             ROS_WARN("%s", ex.what());
-            ros::Duration(1.0).sleep();
-            continue;
+	    return;
         }
 
         // convert to fcu-equivalent coordinate in map
@@ -59,11 +59,9 @@ namespace aruco_track {
                 ros::spin();
             }
             return 0;
-        } catch (...) {
-            std::exception_ptr eptr = std::current_exception();
-            ROS_ERROR("Exception caught: %s", eptr.what());
-            return -1;
+        } catch (std::exception& e) {
+            ROS_ERROR("Exception caught: %s", e.what());
+	    return -1;
         }
     }
-
 }

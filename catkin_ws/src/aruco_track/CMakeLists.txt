@@ -18,6 +18,7 @@ find_package(catkin REQUIRED COMPONENTS
   rosconsole
   tf2
   tf2_ros
+  tf2_geometry_msgs
   message_generation
 )
 
@@ -146,7 +147,7 @@ include_directories(
 add_executable(aruco_track
   src/settings.cpp src/aruco_track.cpp src/estimator.cpp src/frame_def.cpp)
 add_executable(file_stream src/file_stream.cpp)
-add_executable(locator src/locator_main.cpp locator_node.cpp)
+add_executable(locator src/locator_main.cpp src/locator_node.cpp src/frame_def.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the

@@ -20,6 +20,8 @@
 // CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <stdexcept>
+
 #include <tf2_ros/transform_listener.h>
 #include <geometry_msgs/PoseStamped.h>
 
@@ -42,7 +44,7 @@ namespace aruco_track {
     private:
         void HandleEstimatedPose(const geometry_msgs::PoseStampedConstPtr& msg);
     public:
-        LocatorNode(int argv, char **argv, const std::string& node_name = std::string("locator"));
+        LocatorNode(int argc, char **argv, const std::string& node_name = std::string("locator"));
 
         /**
          * Run the node until exit.

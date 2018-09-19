@@ -24,10 +24,10 @@
 
 using namespace aruco_track;
 
-int main(int argv, char **argc) {
+int main(int argc, char **argv) {
 
-    Locator locator(argv, argc);
+    LocatorNode locator_node(argc, argv);
 
-    return locator.run();
+    return locator_node.Run();
     
 }
