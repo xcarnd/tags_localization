@@ -173,7 +173,6 @@ namespace aruco_track {
     : home_set_(false),
       settings_(settings),
       node_handle_(node_handle) {
-    debug_img_pub_ = node_handle_.advertise<sensor_msgs::Image>("debug_image", 1);
     pose_publisher_ = node_handle_.advertise<geometry_msgs::PoseStamped>("board_pose", 1);
   }
 
@@ -192,25 +191,7 @@ namespace aruco_track {
     cv::Mat rvec;
     cv::Mat tvec;
   
-    bool processed;
-    if (settings_.publish_debug_image()) {
-      cv::Mat undistorted;
-      processed = this->ProcessFrame(img_ptr->image, rvec, tvec, undistorted);
-    
-      if (processed) {
-      	this->DrawAxisOnImage(undistorted, rvec, tvec);
-    
-	      sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", undistorted).toImageMsg();
-	      debug_img_pub_.publish(msg);
-      }
-    
-    } else {
-    
-      processed = this->ProcessFrame(img_ptr->image, rvec, tvec);
-    
-    }
-
-    if (processed) {
+    if (this->ProcessFrame(img_ptr->image, rvec, tvec)) {
       geometry_msgs::PoseStamped pose = this->EstimatePose(rvec, tvec);
       pose_publisher_.publish(pose);
     }

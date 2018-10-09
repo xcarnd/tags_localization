@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<launch>
-  <include file="$(find aruco_track)/launch/board_raspicam_stream.launch"/>
-  <include file="$(find aruco_track)/launch/rviz_raspicam_stream.launch"/>
-
-  <node name="locator" package="aruco_track" type="locator" />
-</launch>

@@ -44,7 +44,6 @@ namespace aruco_track {
     const Settings& settings_;
     
     ros::NodeHandle& node_handle_;
-    ros::Publisher debug_img_pub_;
 
     std::shared_ptr<_SetHomePositionHelper> helper_;
 
