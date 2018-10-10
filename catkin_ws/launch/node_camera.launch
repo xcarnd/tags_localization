@@ -1,6 +1,9 @@
 <?xml version="1.0"?>
 <launch>
 
-    <include file="$(find raspicam_node)/launch/raspicam.launch" />
+    <include file="$(find raspicam_node)/launch/raspicam.launch">
+	<arg name="width" value="320"/>
+	<arg name="height" value="240"/>
+    </include>
 
 </launch>
