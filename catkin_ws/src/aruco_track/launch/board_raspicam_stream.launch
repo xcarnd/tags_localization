@@ -1,5 +1,12 @@
 <?xml version="1.0"?>
 <launch>
+  
+  <arg name="markers_dict" default="8"/>
+  <arg name="board_num_x" default="7"/>
+  <arg name="board_num_y" default="5"/>
+  <arg name="board_marker_size" default="0.04"/>
+  <arg name="board_marker_separation" default="0.01"/>
+
   <node name="republish" pkg="image_transport" type="republish"
 	args="compressed in:=/raspicam_node/image raw out:=/raspicam_node/image" />
   
@@ -8,11 +15,11 @@
     <remap from="~camera_info" to="/raspicam_node/camera_info" />
     <remap from="~reference_pose" to="/mavros/local_position/pose" />
 
-    <param name="~markers_dict" value="10" type="int"/>
-    <param name="~board_num_x" value="15" type="int"/>
-    <param name="~board_num_y" value="10" type="int"/>
-    <param name="~board_marker_length" value="0.04" type="double"/>
-    <param name="~board_marker_separation" value="0.01" type="double"/>
+    <param name="~markers_dict" value="$(arg markers_dict)" type="int"/>
+    <param name="~board_num_x" value="$(arg board_num_x)" type="int"/>
+    <param name="~board_num_y" value="$(arg board_num_y)" type="int"/>
+    <param name="~board_marker_length" value="$(arg board_marker_size)" type="double"/>
+    <param name="~board_marker_separation" value="$(arg board_marker_separation)" type="double"/>
     <param name="~publish_debug_image" value="false" type="bool"/>
   </node>
 </launch>

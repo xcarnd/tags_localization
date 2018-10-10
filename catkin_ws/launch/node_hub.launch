@@ -2,7 +2,13 @@
 <launch>
   <group ns="hub">
 
-    <include file="$(find aruco_track)/launch/board_raspicam_stream.launch"/>
+    <include file="$(find aruco_track)/launch/board_raspicam_stream.launch">
+        <arg name="markers_dict" value="8"/>
+	<arg name="board_num_x" value="7"/>
+	<arg name="board_num_y" value="5"/>
+	<arg name="board_marker_size" value="0.04"/>
+	<arg name="board_marker_separation" value="0.01"/>
+    </include>
 
     <include file="$(find aruco_track)/launch/rviz_raspicam_stream.launch"/>
 
