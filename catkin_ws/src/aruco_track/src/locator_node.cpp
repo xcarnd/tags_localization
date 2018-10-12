@@ -40,10 +40,10 @@ namespace aruco_track {
     }
 
     void LocatorNode::HandleEstimatedPose(const geometry_msgs::PoseStampedConstPtr& msg) {
-      // how we need now is to report the estimated frame fcu_enu pose in frame map
+      // how we need now is to report the estimated frame fcu pose in frame map
       geometry_msgs::TransformStamped transform_stamped;
       try {
-	  transform_stamped = tf_buffer_.lookupTransform(FRAME_MAP, FRAME_FCU_ENU, ros::Time(0));
+	  transform_stamped = tf_buffer_.lookupTransform(FRAME_MAP, FRAME_FCU, ros::Time(0));
       } catch (tf2::TransformException &ex) {
 	ROS_WARN("%s", ex.what());
 	return;

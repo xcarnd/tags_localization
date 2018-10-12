@@ -117,13 +117,12 @@ namespace aruco_track {
 	// to build up the tf tree for estimation pose, here're what we have:
 	// 1. we have last_pose_board_ which gives us tf camera_base -> board
 	// 2. we have last_pose_map_ which gives us map -> fcu_base
-	// 3. we are passing in fcu_enu -> camera from the parameter server.
-	// 4. fcu_base -> camera_base is just the same as fcu_enu -> camera
+	// 3. we are passing in fcu -> camera from the parameter server.
+	// 4. fcu_base -> camera_base is just the same as fcu -> camera
 	// 5. every time pose board is estimated, we will have camera -> board
-	// 6. fcu -> fcu_enu is provided by mavros.
 	//
 	// so we can build up such a tf tree:
-	// fcu -> fcu_enu -> camera -> board -> camera_base -> fcu_base -> map
+	// fcu -> -> camera -> board -> camera_base -> fcu_base -> map
 	//
 	// all these relations are fixed except for board -> camera, which has to be
 	// dynamically update every time we get camera -> board.
@@ -143,7 +142,7 @@ namespace aruco_track {
 	
         static_tfs.push_back(tf_board_to_camera_base);
 
-	// fcu_enu -> camera and camera_base -> fcu_base this is specified outside the code.
+	// fcu -> camera and camera_base -> fcu_base this is specified outside the code.
 	// error of this transform can be considered as system bias.
 	// notice that fcu_base is specified in FRD manner.
 	std::string tf_fcu2cam;
@@ -163,19 +162,19 @@ namespace aruco_track {
 	double qz = q_helper.getZ();
 	double qw = q_helper.getW();
 
-        geometry_msgs::TransformStamped tf_fcu_enu_to_camera;
-        tf_fcu_enu_to_camera.header.stamp = stamp;
-        tf_fcu_enu_to_camera.header.frame_id = "fcu_enu";
-        tf_fcu_enu_to_camera.child_frame_id = "camera";
-        tf_fcu_enu_to_camera.transform.translation.x = tx;
-        tf_fcu_enu_to_camera.transform.translation.y = ty;
-        tf_fcu_enu_to_camera.transform.translation.z = tz;
-        tf_fcu_enu_to_camera.transform.rotation.x = qx;
-        tf_fcu_enu_to_camera.transform.rotation.y = qy;
-        tf_fcu_enu_to_camera.transform.rotation.z = qz;
-        tf_fcu_enu_to_camera.transform.rotation.w = qw;
+        geometry_msgs::TransformStamped tf_fcu_to_camera;
+        tf_fcu_to_camera.header.stamp = stamp;
+        tf_fcu_to_camera.header.frame_id = "fcu";
+        tf_fcu_to_camera.child_frame_id = "camera";
+        tf_fcu_to_camera.transform.translation.x = tx;
+        tf_fcu_to_camera.transform.translation.y = ty;
+        tf_fcu_to_camera.transform.translation.z = tz;
+        tf_fcu_to_camera.transform.rotation.x = qx;
+        tf_fcu_to_camera.transform.rotation.y = qy;
+        tf_fcu_to_camera.transform.rotation.z = qz;
+        tf_fcu_to_camera.transform.rotation.w = qw;
 
-        static_tfs.push_back(tf_fcu_enu_to_camera);
+        static_tfs.push_back(tf_fcu_to_camera);
 
 	// camera_base -> fcu_base is just the inverse
         geometry_msgs::TransformStamped tf_base_camera_to_fcu;
@@ -206,24 +205,6 @@ namespace aruco_track {
 			   tf_fcu_base_to_map);
 
         static_tfs.push_back(tf_fcu_base_to_map);
-
-	// adding fcu (fcu_ned) -> fcu_enu since we are using fcu as the root of the tree.
-	// this is a fixed transform too.
-	q_helper.setRPY(M_PI, 0, M_PI / 2);
-	
-        geometry_msgs::TransformStamped tf_fcu_ned_to_enu;
-        tf_fcu_ned_to_enu.header.stamp = stamp;
-        tf_fcu_ned_to_enu.header.frame_id = "fcu";
-        tf_fcu_ned_to_enu.child_frame_id = "fcu_enu";
-	tf_fcu_ned_to_enu.transform.translation.x = 0;
-	tf_fcu_ned_to_enu.transform.translation.y = 0;
-	tf_fcu_ned_to_enu.transform.translation.z = 0;
-	tf_fcu_ned_to_enu.transform.rotation.x = q_helper.getX();
-	tf_fcu_ned_to_enu.transform.rotation.y = q_helper.getY();
-	tf_fcu_ned_to_enu.transform.rotation.z = q_helper.getZ();
-	tf_fcu_ned_to_enu.transform.rotation.w = q_helper.getW();
-
-        static_tfs.push_back(tf_fcu_ned_to_enu);
 
         static_transform_broadcaster_.sendTransform(static_tfs);
 

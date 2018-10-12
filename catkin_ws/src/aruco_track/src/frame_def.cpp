@@ -34,7 +34,7 @@ namespace aruco_track {
 
   const std::string FRAME_FCU("fcu");
   
-  const std::string FRAME_FCU_ENU("fcu_enu");
+  const std::string FRAME_FCU_NED("fcu_ned");
   
   const std::string FRAME_FCU_FRD("fcu_frd");
   
