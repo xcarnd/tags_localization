@@ -55,6 +55,43 @@ using namespace cv;
 using namespace cv::aruco;
 
 namespace {
+
+  inline void fillTransform(geometry_msgs::TransformStamped& transform,
+			    const std::string &parent_frame,
+			    const std::string &child_frame,
+			    double tx, double ty, double tz,
+			    double qx, double qy, double qz, double qw) {
+    transform.header.frame_id = parent_frame;
+    transform.child_frame_id = child_frame;
+    
+    transform.transform.translation.x = tx;
+    transform.transform.translation.y = ty;
+    transform.transform.translation.z = tz;
+
+    transform.transform.rotation.x = qx;
+    transform.transform.rotation.y = qy;
+    transform.transform.rotation.z = qz;
+    transform.transform.rotation.w = qw;
+  }
+
+  inline void fillTransform(geometry_msgs::TransformStamped& transform,
+			    const std::string &parent_frame,
+			    const std::string &child_frame,
+			    const tf2::Vector3 &translation,
+			    const tf2::Quaternion &rotation) {
+    transform.header.frame_id = parent_frame;
+    transform.child_frame_id = child_frame;
+    
+    transform.transform.translation.x = translation.getX();
+    transform.transform.translation.y = translation.getY();
+    transform.transform.translation.z = translation.getZ();
+
+    transform.transform.rotation.x = rotation.getX();
+    transform.transform.rotation.y = rotation.getY();
+    transform.transform.rotation.z = rotation.getZ();
+    transform.transform.rotation.w = rotation.getW();
+  }
+  
   inline void fillInverseIntoMsg(const geometry_msgs::Quaternion& quaternion, const geometry_msgs::Point& point, geometry_msgs::TransformStamped& msg) {
     tf2::Transform from(tf2::Quaternion(quaternion.x, quaternion.y, quaternion.z, quaternion.w),
 			tf2::Vector3(point.x, point.y, point.z));
@@ -122,7 +159,7 @@ namespace aruco_track {
 	// 5. every time pose board is estimated, we will have camera -> board
 	//
 	// so we can build up such a tf tree:
-	// fcu -> -> camera -> board -> camera_base -> fcu_base -> map
+	// fcu -> camera -> board -> camera_base -> fcu_base -> map
 	//
 	// all these relations are fixed except for board -> camera, which has to be
 	// dynamically update every time we get camera -> board.
@@ -144,7 +181,7 @@ namespace aruco_track {
 
 	// fcu -> camera and camera_base -> fcu_base this is specified outside the code.
 	// error of this transform can be considered as system bias.
-	// notice that fcu_base is specified in FRD manner.
+	// notice that fcu_base is specified in FLU manner.
 	std::string tf_fcu2cam;
 	if (!nh_.getParam("tf_fcu2cam", tf_fcu2cam)) {
 	  ROS_WARN("tf_fcu2cam not set. Using '0 0 0 0 0 0' as the default value.");
@@ -196,15 +233,58 @@ namespace aruco_track {
 
         // last_pose_map_ is the pose of fcu in map frame. so we have a transform from map to fcu_base
 	// but we need the inverse
-        geometry_msgs::TransformStamped tf_fcu_base_to_map;
-        tf_fcu_base_to_map.header.stamp = stamp;
-        tf_fcu_base_to_map.header.frame_id = "fcu_base";
-        tf_fcu_base_to_map.child_frame_id = "map";
-	fillInverseIntoMsg(last_pose_map_.pose.orientation,
-			   last_pose_map_.pose.position,
-			   tf_fcu_base_to_map);
+	// also notice that by the convention of ROS, map is in ENU favor, and
+	// fcu is in FLU. we will need to apply an additional transforms to
+	// get the right transform from fcu to map.
 
-        static_tfs.push_back(tf_fcu_base_to_map);
+	// the process can be broken into:
+	// map -> fcu_base_enu(no rotated)
+	//     -> fcu_base_flu(not rotated)
+	//     -> fcu_base (final fcu_flu)
+
+	geometry_msgs::Point point_zero;
+	point_zero.x = point_zero.y = point_zero.z = 0;
+	
+	geometry_msgs::Quaternion quaternion_zero;
+	quaternion_zero.x = quaternion_zero.y = quaternion_zero.z = 0;
+	quaternion_zero.w = 1;
+
+	// 1. fcu_base -> fcu_flu_base, that is, reverse the rotation
+	// in last_pose_map_
+	geometry_msgs::TransformStamped tf_fcu_base_map_1;
+	tf_fcu_base_map_1.header.stamp = stamp;
+	tf_fcu_base_map_1.header.frame_id = "fcu_base";
+	tf_fcu_base_map_1.child_frame_id = "fcu_base_flu";
+	fillInverseIntoMsg(last_pose_map_.pose.orientation,
+			   point_zero,
+			   tf_fcu_base_map_1);
+	
+	static_tfs.push_back(tf_fcu_base_map_1);
+
+	// 2. fcu_flu_base -> flu_enu_base, that is, convert
+	// from FLU to ENU
+	q_helper.setRPY(0, 0, deg2rad(-90));
+	geometry_msgs::TransformStamped tf_fcu_base_map_2;
+	tf_fcu_base_map_2.header.stamp = stamp;
+	tf_fcu_base_map_2.header.frame_id = "fcu_base_flu";
+	tf_fcu_base_map_2.child_frame_id = "fcu_base_enu";
+	fillTransform(tf_fcu_base_map_2,
+		      "fcu_base_flu", "fcu_base_enu",
+		      tf2::Vector3(0, 0, 0),
+		      q_helper);
+	static_tfs.push_back(tf_fcu_base_map_2);
+
+	// 3. flu_enu_base -> map, that is, reverse the translation
+	// part of last_pose_map_
+        geometry_msgs::TransformStamped tf_fcu_base_map_3;
+        tf_fcu_base_map_3.header.stamp = stamp;
+        tf_fcu_base_map_3.header.frame_id = "fcu_base_enu";
+        tf_fcu_base_map_3.child_frame_id = "map";
+	fillInverseIntoMsg(quaternion_zero,
+			   last_pose_map_.pose.position,
+			   tf_fcu_base_map_3);
+
+        static_tfs.push_back(tf_fcu_base_map_3);
 
         static_transform_broadcaster_.sendTransform(static_tfs);
 

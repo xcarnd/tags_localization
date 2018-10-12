@@ -40,10 +40,15 @@ namespace aruco_track {
     }
 
     void LocatorNode::HandleEstimatedPose(const geometry_msgs::PoseStampedConstPtr& msg) {
-      // how we need now is to report the estimated frame fcu pose in frame map
-      geometry_msgs::TransformStamped transform_stamped;
+      // how we need now is to report the estimated fcu pose in frame map
+      // fcu pose is constitude with:
+      // 1. translation from map to fcu_* (whatever * is, we only need the translation part)
+      // 2. rotation from fcu_base_flu to fcu
+      geometry_msgs::TransformStamped tf_translation;
+      geometry_msgs::TransformStamped tf_rotation;
       try {
-	  transform_stamped = tf_buffer_.lookupTransform(FRAME_MAP, FRAME_FCU, ros::Time(0));
+	  tf_translation = tf_buffer_.lookupTransform(FRAME_MAP, FRAME_FCU, ros::Time(0));
+	  tf_rotation = tf_buffer_.lookupTransform("fcu_base_flu", "fcu", ros::Time(0));
       } catch (tf2::TransformException &ex) {
 	ROS_WARN("%s", ex.what());
 	return;
@@ -53,13 +58,13 @@ namespace aruco_track {
       msg_pub.header.stamp = ros::Time::now();
       msg_pub.header.frame_id = FRAME_MAP;
       
-      msg_pub.pose.position.x = transform_stamped.transform.translation.x;
-      msg_pub.pose.position.y = transform_stamped.transform.translation.y;
-      msg_pub.pose.position.z = transform_stamped.transform.translation.z;
-      msg_pub.pose.orientation.x = transform_stamped.transform.rotation.x;
-      msg_pub.pose.orientation.y = transform_stamped.transform.rotation.y;
-      msg_pub.pose.orientation.z = transform_stamped.transform.rotation.z;
-      msg_pub.pose.orientation.w = transform_stamped.transform.rotation.w;
+      msg_pub.pose.position.x = tf_translation.transform.translation.x;
+      msg_pub.pose.position.y = tf_translation.transform.translation.y;
+      msg_pub.pose.position.z = tf_translation.transform.translation.z;
+      msg_pub.pose.orientation.x = tf_rotation.transform.rotation.x;
+      msg_pub.pose.orientation.y = tf_rotation.transform.rotation.y;
+      msg_pub.pose.orientation.z = tf_rotation.transform.rotation.z;
+      msg_pub.pose.orientation.w = tf_rotation.transform.rotation.w;
       pose_map_pub_.publish(msg_pub);
     }
 
