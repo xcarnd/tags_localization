@@ -6,6 +6,7 @@
   <arg name="board_num_y" default="5"/>
   <arg name="board_marker_size" default="0.04"/>
   <arg name="board_marker_separation" default="0.01"/>
+  <arg name="tf_fcu2cam" default="0 0 0 0 0 0"/>
 
   <node name="republish" pkg="image_transport" type="republish"
 	args="compressed in:=/raspicam_node/image raw out:=/raspicam_node/image" />
@@ -21,5 +22,6 @@
     <param name="~board_marker_length" value="$(arg board_marker_size)" type="double"/>
     <param name="~board_marker_separation" value="$(arg board_marker_separation)" type="double"/>
     <param name="~publish_debug_image" value="false" type="bool"/>
+    <param name="~tf_fcu2cam" value="$(arg tf_fcu2cam)" type="string"/>
   </node>
 </launch>

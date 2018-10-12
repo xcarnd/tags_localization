@@ -34,23 +34,33 @@ namespace aruco_track {
     : BaseNode(argc, argv, node_name),
       nh_(ros::NodeHandle("~")),
       tf_listener_(tf_buffer_) {
-        pose_board_sub_ = nh_.subscribe("/aruco_track/board_pose", 1, &LocatorNode::HandleEstimatedPose, this);
+        ros::NodeHandle nh_aruco_track("aruco_track");
+        pose_board_sub_ = nh_aruco_track.subscribe("board_pose", 1, &LocatorNode::HandleEstimatedPose, this);
         pose_map_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("pose", 1);
     }
 
     void LocatorNode::HandleEstimatedPose(const geometry_msgs::PoseStampedConstPtr& msg) {
-        geometry_msgs::TransformStamped transform_stamped;
-        try {
-            transform_stamped = tf_buffer_.lookupTransform(FRAME_MAP, FRAME_BOARD, ros::Time(0));
-        } catch (tf2::TransformException &ex) {
-            ROS_WARN("%s", ex.what());
-	    return;
-        }
+      // how we need now is to report the estimated frame fcu_enu pose in frame map
+      geometry_msgs::TransformStamped transform_stamped;
+      try {
+	  transform_stamped = tf_buffer_.lookupTransform(FRAME_MAP, FRAME_FCU_ENU, ros::Time(0));
+      } catch (tf2::TransformException &ex) {
+	ROS_WARN("%s", ex.what());
+	return;
+      }
 
-        // convert to fcu-equivalent coordinate in map
-        geometry_msgs::PoseStamped fcu_eq_in_map;
-        tf2::doTransform(*msg, fcu_eq_in_map, transform_stamped);
-        pose_map_pub_.publish(fcu_eq_in_map);
+      geometry_msgs::PoseStamped msg_pub;
+      msg_pub.header.stamp = ros::Time::now();
+      msg_pub.header.frame_id = FRAME_MAP;
+      
+      msg_pub.pose.position.x = transform_stamped.transform.translation.x;
+      msg_pub.pose.position.y = transform_stamped.transform.translation.y;
+      msg_pub.pose.position.z = transform_stamped.transform.translation.z;
+      msg_pub.pose.orientation.x = transform_stamped.transform.rotation.x;
+      msg_pub.pose.orientation.y = transform_stamped.transform.rotation.y;
+      msg_pub.pose.orientation.z = transform_stamped.transform.rotation.z;
+      msg_pub.pose.orientation.w = transform_stamped.transform.rotation.w;
+      pose_map_pub_.publish(msg_pub);
     }
 
     int LocatorNode::Run() {

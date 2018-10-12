@@ -24,9 +24,14 @@
 // Detect, estimate pose from board configuration and broadcast
 // tf2 messages.
 
+#ifndef _USE_MATH_DEFINES
+#define _USE_MATH_DEFINES
+#endif
+
 #include <vector>
 #include <memory>
-#include <iostream>
+#include <sstream>
+#include <cmath>
 
 #include <ros/ros.h>
 #include <cv_bridge/cv_bridge.h>
@@ -34,6 +39,7 @@
 #include <geometry_msgs/TransformStamped.h>
 #include <tf2/utils.h>
 #include <tf2_ros/static_transform_broadcaster.h>
+#include <tf2_ros/transform_broadcaster.h>
 
 #include <opencv2/imgproc.hpp>
 #include <opencv2/aruco.hpp>
@@ -47,6 +53,25 @@
 using namespace std;
 using namespace cv;
 using namespace cv::aruco;
+
+namespace {
+  inline void fillInverseIntoMsg(const geometry_msgs::Quaternion& quaternion, const geometry_msgs::Point& point, geometry_msgs::TransformStamped& msg) {
+    tf2::Transform from(tf2::Quaternion(quaternion.x, quaternion.y, quaternion.z, quaternion.w),
+			tf2::Vector3(point.x, point.y, point.z));
+    const tf2::Transform& inverse = from.inverse();
+    msg.transform.translation.x = inverse.getOrigin().getX();
+    msg.transform.translation.y = inverse.getOrigin().getY();
+    msg.transform.translation.z = inverse.getOrigin().getZ();
+    msg.transform.rotation.x = inverse.getRotation().getX();
+    msg.transform.rotation.y = inverse.getRotation().getY();
+    msg.transform.rotation.z = inverse.getRotation().getZ();
+    msg.transform.rotation.w = inverse.getRotation().getW();
+  }
+
+  inline double deg2rad(double deg) {
+    return deg * M_PI / 180;
+  }
+}
 
 namespace aruco_track {
 
@@ -67,6 +92,7 @@ namespace aruco_track {
 
   private:
     void HandlePoseFromBoard(const geometry_msgs::PoseStampedConstPtr& msg) {
+      ROS_DEBUG("Pose from board received");
       last_pose_board_ = *msg;
       last_pose_board_set_ = true;
       
@@ -74,6 +100,7 @@ namespace aruco_track {
     }
 
     void HandlePoseFromMap(const geometry_msgs::PoseStampedConstPtr& msg) {
+      ROS_DEBUG("Pose from map received");
       last_pose_map_ = *msg;
       last_pose_map_set_ = true;
       
@@ -83,71 +110,124 @@ namespace aruco_track {
     void Join() {
       if (last_pose_board_set_ && last_pose_map_set_) {
         ROS_INFO("Pose from board and pose from map set.");
-        // define the origin of map frame to be somewhere with xyz = 0 and rpy = 0
-        // define the origin of board frame to be the lower left corner of the tag board, z point outwards.
-        //
-        // pose board contains transformation information for camera pose in board frame.
-        //
-        // pose map contains transformation information for fcu pose in map frame.
-        //
-        // and now we want to solve this problem: given a the camera pose in board frame, what would 
-        // the pose of the fcu in map frame?
-        //
-        // here is my solution:
-        // when set_home_position message is received, define the last camera pose as the origin
-        // of the frame 'camera_base'. we then immediately can establish a static tf transform between 
-        // the board frame and camera_base frame.
-        //
-        // suppose the transform from camera_base frame to map frame is T_c_m. given a pose P in camera_base frame,
-        // we can transform it into map frame by appling T_c_m on P. if we apply T_c_m on the origin point
-        // of camera_base frame, we'll get the pose for camera in map frame when we received the last pose board
-        // message.
-        //
-        // and now we have pose of camera in map frame and pose of fcu in map frame. Their centers won't
-        // coincide so their reading won't be the same, but the transformation between them is fixed 
-        // (noted as T_cam_fcu) and won't changed over time.
-        //
-        // although we might not solve T_c_m and T_cam_fcu directly, but since they're all fixed transform, 
-        // we can combine them as a whole, i.e, T_cam2fcu = T_cam_fcu * T_c_m. This is a transform from pose of 
-        // camera in camera_base frame to pose of fcu in map frame. This transform is solvable because we have 
-        // a pair of known input and output: the origin of the camera input and the pose of fcu in map.
-        //
-        // so, together with transform from board frame to camera_base frame, we can now transform any 
-        // camera pose in board to fcu in map.
+	
         std::vector<geometry_msgs::TransformStamped> static_tfs;
 	ros::Time stamp = ros::Time::now();
 
-        // since we know the pose of camera_base in board, the same pose can be used as the transform from camera_base to board.
-        geometry_msgs::TransformStamped tf_board_camera_base;
-        tf_board_camera_base.header.stamp = stamp;
-        tf_board_camera_base.header.frame_id = "camera_base";
-        tf_board_camera_base.child_frame_id = "board";
-        tf_board_camera_base.transform.translation.x = last_pose_board_.pose.position.x;
-        tf_board_camera_base.transform.translation.y = last_pose_board_.pose.position.y;
-        tf_board_camera_base.transform.translation.z = last_pose_board_.pose.position.y;
-        tf_board_camera_base.transform.rotation.x = last_pose_board_.pose.orientation.x;
-        tf_board_camera_base.transform.rotation.y = last_pose_board_.pose.orientation.y;
-        tf_board_camera_base.transform.rotation.z = last_pose_board_.pose.orientation.z;
-        tf_board_camera_base.transform.rotation.w = last_pose_board_.pose.orientation.w;
+	// to build up the tf tree for estimation pose, here're what we have:
+	// 1. we have last_pose_board_ which gives us tf camera_base -> board
+	// 2. we have last_pose_map_ which gives us map -> fcu_base
+	// 3. we are passing in fcu_enu -> camera from the parameter server.
+	// 4. fcu_base -> camera_base is just the same as fcu_enu -> camera
+	// 5. every time pose board is estimated, we will have camera -> board
+	// 6. fcu -> fcu_enu is provided by mavros.
+	//
+	// so we can build up such a tf tree:
+	// fcu -> fcu_enu -> camera -> board -> camera_base -> fcu_base -> map
+	//
+	// all these relations are fixed except for board -> camera, which has to be
+	// dynamically update every time we get camera -> board.
+	//
+        // as the document of aruco_track says, last_pose_board_ is actually the transformation from
+	// board coordinate system to camera_base system, so we have camera_base -> board.
+	//
+	// yet we need the inverse: board -> camera_base
+	//
+        geometry_msgs::TransformStamped tf_board_to_camera_base;
+        tf_board_to_camera_base.header.stamp = stamp;
+        tf_board_to_camera_base.header.frame_id = "board";
+        tf_board_to_camera_base.child_frame_id = "camera_base";
+	fillInverseIntoMsg(last_pose_board_.pose.orientation,
+			   last_pose_board_.pose.position,
+			   tf_board_to_camera_base);
+	
+        static_tfs.push_back(tf_board_to_camera_base);
 
-        static_tfs.push_back(tf_board_camera_base);
+	// fcu_enu -> camera and camera_base -> fcu_base this is specified outside the code.
+	// error of this transform can be considered as system bias.
+	// notice that fcu_base is specified in FRD manner.
+	std::string tf_fcu2cam;
+	if (!nh_.getParam("tf_fcu2cam", tf_fcu2cam)) {
+	  ROS_WARN("tf_fcu2cam not set. Using '0 0 0 0 0 0' as the default value.");
+	  tf_fcu2cam = "0 0 0 0 0 0";
+	}
 
-        // and the transform from pose in camera_base to fcu in map.
-        geometry_msgs::TransformStamped tf_camera_base_map;
-        tf_camera_base_map.header.stamp = stamp;
-        tf_camera_base_map.header.frame_id = "camera_base";
-        tf_camera_base_map.child_frame_id = "map";
-        tf_camera_base_map.transform.translation.x = last_pose_map_.pose.position.x;
-        tf_camera_base_map.transform.translation.y = last_pose_map_.pose.position.y;
-        tf_camera_base_map.transform.translation.z = last_pose_map_.pose.position.z;
-        tf_camera_base_map.transform.rotation.x = last_pose_map_.pose.orientation.x;
-        tf_camera_base_map.transform.rotation.y = last_pose_map_.pose.orientation.y;
-        tf_camera_base_map.transform.rotation.z = last_pose_map_.pose.orientation.z;
-        tf_camera_base_map.transform.rotation.w = last_pose_map_.pose.orientation.w;
+	std::istringstream iss(tf_fcu2cam);
+	double tx, ty, tz, r, p, y;
+	iss>>tx>>ty>>tz>>r>>p>>y;
+	
+	tf2::Quaternion q_helper;
+	q_helper.setRPY(deg2rad(r), deg2rad(p), deg2rad(y));
+	double qx = q_helper.getX();
+	double qy = q_helper.getY();
+	double qz = q_helper.getZ();
+	double qw = q_helper.getW();
 
-        static_tfs.push_back(tf_camera_base_map);
+        geometry_msgs::TransformStamped tf_fcu_enu_to_camera;
+        tf_fcu_enu_to_camera.header.stamp = stamp;
+        tf_fcu_enu_to_camera.header.frame_id = "fcu_enu";
+        tf_fcu_enu_to_camera.child_frame_id = "camera";
+        tf_fcu_enu_to_camera.transform.translation.x = tx;
+        tf_fcu_enu_to_camera.transform.translation.y = ty;
+        tf_fcu_enu_to_camera.transform.translation.z = tz;
+        tf_fcu_enu_to_camera.transform.rotation.x = qx;
+        tf_fcu_enu_to_camera.transform.rotation.y = qy;
+        tf_fcu_enu_to_camera.transform.rotation.z = qz;
+        tf_fcu_enu_to_camera.transform.rotation.w = qw;
+
+        static_tfs.push_back(tf_fcu_enu_to_camera);
+
+	// camera_base -> fcu_base is just the inverse
+        geometry_msgs::TransformStamped tf_base_camera_to_fcu;
+        tf_base_camera_to_fcu.header.stamp = stamp;
+        tf_base_camera_to_fcu.header.frame_id = "camera_base";
+        tf_base_camera_to_fcu.child_frame_id = "fcu_base";
+	geometry_msgs::Quaternion quaternion;
+	quaternion.x = qx;
+	quaternion.y = qy;
+	quaternion.z = qz;
+	quaternion.w = qw;
+	geometry_msgs::Point point;
+	point.x = tx;
+	point.y = ty;
+	point.z = tz;
+	fillInverseIntoMsg(quaternion, point, tf_base_camera_to_fcu);
+
+        static_tfs.push_back(tf_base_camera_to_fcu);
+
+        // last_pose_map_ is the pose of fcu in map frame. so we have a transform from map to fcu_base
+	// but we need the inverse
+        geometry_msgs::TransformStamped tf_fcu_base_to_map;
+        tf_fcu_base_to_map.header.stamp = stamp;
+        tf_fcu_base_to_map.header.frame_id = "fcu_base";
+        tf_fcu_base_to_map.child_frame_id = "map";
+	fillInverseIntoMsg(last_pose_map_.pose.orientation,
+			   last_pose_map_.pose.position,
+			   tf_fcu_base_to_map);
+
+        static_tfs.push_back(tf_fcu_base_to_map);
+
+	// adding fcu (fcu_ned) -> fcu_enu since we are using fcu as the root of the tree.
+	// this is a fixed transform too.
+	q_helper.setRPY(M_PI, 0, M_PI / 2);
+	
+        geometry_msgs::TransformStamped tf_fcu_ned_to_enu;
+        tf_fcu_ned_to_enu.header.stamp = stamp;
+        tf_fcu_ned_to_enu.header.frame_id = "fcu";
+        tf_fcu_ned_to_enu.child_frame_id = "fcu_enu";
+	tf_fcu_ned_to_enu.transform.translation.x = 0;
+	tf_fcu_ned_to_enu.transform.translation.y = 0;
+	tf_fcu_ned_to_enu.transform.translation.z = 0;
+	tf_fcu_ned_to_enu.transform.rotation.x = q_helper.getX();
+	tf_fcu_ned_to_enu.transform.rotation.y = q_helper.getY();
+	tf_fcu_ned_to_enu.transform.rotation.z = q_helper.getZ();
+	tf_fcu_ned_to_enu.transform.rotation.w = q_helper.getW();
+
+        static_tfs.push_back(tf_fcu_ned_to_enu);
 
         static_transform_broadcaster_.sendTransform(static_tfs);
+
+	ROS_INFO("Fixed frame references established and broadcasted.");
 
         pose_from_board_sub_.shutdown();
         pose_from_map_sub_.shutdown();
@@ -165,7 +245,7 @@ namespace aruco_track {
 					   &_SetHomePositionHelper::HandlePoseFromBoard, this);
       pose_from_map_sub_ = nh_.subscribe("reference_pose", 1,
 					 &_SetHomePositionHelper::HandlePoseFromMap, this);
-      ROS_INFO("Subscribed to /aruco_track/pose & /aruco_track/reference_pose");
+      ROS_INFO("Subscribed to aruco_track/board_pose & aruco_track/reference_pose");
     }
   };
 
@@ -194,6 +274,22 @@ namespace aruco_track {
     if (this->ProcessFrame(img_ptr->image, rvec, tvec)) {
       geometry_msgs::PoseStamped pose = this->EstimatePose(rvec, tvec);
       pose_publisher_.publish(pose);
+
+      // also broadcast dynamic transform camera -> board.
+      // this is the inverse of pose
+      geometry_msgs::TransformStamped tf_camera_to_board;
+      tf_camera_to_board.header.stamp = ros::Time::now();
+      tf_camera_to_board.header.frame_id = FRAME_CAMERA;
+      tf_camera_to_board.child_frame_id = FRAME_BOARD;
+      tf_camera_to_board.transform.translation.x = pose.pose.position.x;
+      tf_camera_to_board.transform.translation.y = pose.pose.position.y;
+      tf_camera_to_board.transform.translation.z = pose.pose.position.z;
+      tf_camera_to_board.transform.rotation.x = pose.pose.orientation.x;
+      tf_camera_to_board.transform.rotation.y = pose.pose.orientation.y;
+      tf_camera_to_board.transform.rotation.z = pose.pose.orientation.z;
+      tf_camera_to_board.transform.rotation.w = pose.pose.orientation.w;
+    
+      transform_broadcaster_.sendTransform(tf_camera_to_board);
     }
   }
 
@@ -273,7 +369,7 @@ namespace aruco_track {
 
     geometry_msgs::PoseStamped msg;
     msg.header.stamp = ros::Time::now();
-    msg.header.frame_id = FRAME_BOARD;
+    msg.header.frame_id = FRAME_CAMERA;
 
     msg.pose.position.x = tvec.at<double>(0, 0);
     msg.pose.position.y = tvec.at<double>(1, 0);
