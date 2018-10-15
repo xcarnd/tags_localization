@@ -24,14 +24,9 @@
 // Detect, estimate pose from board configuration and broadcast
 // tf2 messages.
 
-#ifndef _USE_MATH_DEFINES
-#define _USE_MATH_DEFINES
-#endif
-
 #include <vector>
 #include <memory>
 #include <sstream>
-#include <cmath>
 
 #include <ros/ros.h>
 #include <cv_bridge/cv_bridge.h>
@@ -47,6 +42,7 @@
 
 #include <Eigen/Geometry>
 
+#include "utils.hpp"
 #include "estimator.hpp"
 #include "frame_def.hpp"
 
@@ -54,61 +50,6 @@ using namespace std;
 using namespace cv;
 using namespace cv::aruco;
 
-namespace {
-
-  inline void fillTransform(geometry_msgs::TransformStamped& transform,
-			    const std::string &parent_frame,
-			    const std::string &child_frame,
-			    double tx, double ty, double tz,
-			    double qx, double qy, double qz, double qw) {
-    transform.header.frame_id = parent_frame;
-    transform.child_frame_id = child_frame;
-    
-    transform.transform.translation.x = tx;
-    transform.transform.translation.y = ty;
-    transform.transform.translation.z = tz;
-
-    transform.transform.rotation.x = qx;
-    transform.transform.rotation.y = qy;
-    transform.transform.rotation.z = qz;
-    transform.transform.rotation.w = qw;
-  }
-
-  inline void fillTransform(geometry_msgs::TransformStamped& transform,
-			    const std::string &parent_frame,
-			    const std::string &child_frame,
-			    const tf2::Vector3 &translation,
-			    const tf2::Quaternion &rotation) {
-    transform.header.frame_id = parent_frame;
-    transform.child_frame_id = child_frame;
-    
-    transform.transform.translation.x = translation.getX();
-    transform.transform.translation.y = translation.getY();
-    transform.transform.translation.z = translation.getZ();
-
-    transform.transform.rotation.x = rotation.getX();
-    transform.transform.rotation.y = rotation.getY();
-    transform.transform.rotation.z = rotation.getZ();
-    transform.transform.rotation.w = rotation.getW();
-  }
-  
-  inline void fillInverseIntoMsg(const geometry_msgs::Quaternion& quaternion, const geometry_msgs::Point& point, geometry_msgs::TransformStamped& msg) {
-    tf2::Transform from(tf2::Quaternion(quaternion.x, quaternion.y, quaternion.z, quaternion.w),
-			tf2::Vector3(point.x, point.y, point.z));
-    const tf2::Transform& inverse = from.inverse();
-    msg.transform.translation.x = inverse.getOrigin().getX();
-    msg.transform.translation.y = inverse.getOrigin().getY();
-    msg.transform.translation.z = inverse.getOrigin().getZ();
-    msg.transform.rotation.x = inverse.getRotation().getX();
-    msg.transform.rotation.y = inverse.getRotation().getY();
-    msg.transform.rotation.z = inverse.getRotation().getZ();
-    msg.transform.rotation.w = inverse.getRotation().getW();
-  }
-
-  inline double deg2rad(double deg) {
-    return deg * M_PI / 180;
-  }
-}
 
 namespace aruco_track {
 
