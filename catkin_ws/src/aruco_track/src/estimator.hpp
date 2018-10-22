@@ -29,32 +29,37 @@
 #include <ros/ros.h>
 #include <tf2_ros/static_transform_broadcaster.h>
 #include <tf2_ros/transform_broadcaster.h>
+#include <tf2_ros/transform_listener.h>
+#include <tf2_ros/message_filter.h>
+#include <message_filters/subscriber.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <sensor_msgs/Image.h>
-#include <aruco_track/SetHomePosition.h>
-
 #include "settings.hpp"
 
 namespace aruco_track {
 
-  class _SetHomePositionHelper;
-
   class BoardEstimator {
   private:
-    bool home_set_;
     const Settings& settings_;
     
     ros::NodeHandle& node_handle_;
 
-    std::shared_ptr<_SetHomePositionHelper> helper_;
-
-    ros::Publisher pose_publisher_;
+    ros::Publisher estimated_pose_pub_;
 
     ros::Subscriber source_sub_;
-    ros::Subscriber set_home_position_sub_;
 
+    // subcriber for pose reported from mavros
+    ros::Subscriber pose_sub_;
+
+    // tf broadcaster
     tf2_ros::StaticTransformBroadcaster static_transform_broadcaster_;
     tf2_ros::TransformBroadcaster transform_broadcaster_;
+
+    // tf listener & filter
+    tf2_ros::Buffer tf2_buffer_;
+    tf2_ros::TransformListener tf2_listener_;
+    message_filters::Subscriber<geometry_msgs::TransformStamped> board_est_transform_sub_;
+    tf2_ros::MessageFilter<geometry_msgs::TransformStamped> tf2_filter_;
   public:
     BoardEstimator(ros::NodeHandle& node_handle, const Settings& settings);
     
@@ -65,14 +70,16 @@ namespace aruco_track {
     void DrawAxisOnImage(cv::InputOutputArray& image,
 			 const cv::Mat& rvec, const cv::Mat& tvec);
   
-    void InitSubscribers();
+    void Init();
 
-    // callback handlers
-    void HandleSetHomePosition(const SetHomePositionConstPtr& msg);
+    // subcribers
     void HandleImage(const sensor_msgs::ImageConstPtr& msg);
+    void HandleFcuPose(const geometry_msgs::PoseStampedConstPtr& msg);
 
   private:
-    geometry_msgs::PoseStamped EstimatePose(const cv::Mat& rvec, const cv::Mat& tvec);
+    void EstimatePose(const cv::Mat& rvec, const cv::Mat& tvec);
+
+    void EstimateAndPublishPosition(const geometry_msgs::TransformStampedConstPtr& msg);
 
   };
   

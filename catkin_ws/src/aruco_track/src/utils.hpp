@@ -23,54 +23,157 @@
 #ifndef _ARUCO_TRACK_UTILS_HPP_
 #define _ARUCO_TRACK_UTILS_HPP_
 
-#ifndef _USE_MATH_DEFINES
-#define _USE_MATH_DEFINES
-#endif
-
 #include <string>
+
+#include <ros/ros.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <tf2/utils.h>
 
-namespace {
+#include <Eigen/Geometry>
+
+namespace aruco_track {
 
   constexpr double PI = 3.14159265358979323846;
 
-  inline void fillTransform(geometry_msgs::TransformStamped& transform,
-			    const std::string &parent_frame,
-			    const std::string &child_frame,
-			    double tx, double ty, double tz,
-			    double qx, double qy, double qz, double qw) {
-    transform.header.frame_id = parent_frame;
-    transform.child_frame_id = child_frame;
-    
-    transform.transform.translation.x = tx;
-    transform.transform.translation.y = ty;
-    transform.transform.translation.z = tz;
-
-    transform.transform.rotation.x = qx;
-    transform.transform.rotation.y = qy;
-    transform.transform.rotation.z = qz;
-    transform.transform.rotation.w = qw;
+  inline double deg2rad(double deg) {
+    return deg * PI / 180;
   }
 
-  inline void fillTransform(geometry_msgs::TransformStamped& transform,
-			    const std::string &parent_frame,
-			    const std::string &child_frame,
-			    const tf2::Vector3 &translation,
-			    const tf2::Quaternion &rotation) {
-    transform.header.frame_id = parent_frame;
-    transform.child_frame_id = child_frame;
-    
-    transform.transform.translation.x = translation.getX();
-    transform.transform.translation.y = translation.getY();
-    transform.transform.translation.z = translation.getZ();
+  typedef enum {
+    MEMBER_VARIABLE,
+    MEMBER_METHOD,
+    MEMBER_METHOD_GETTER,
+    CUSTOM
+  } _component_getter_type;
 
-    transform.transform.rotation.x = rotation.getX();
-    transform.transform.rotation.y = rotation.getY();
-    transform.transform.rotation.z = rotation.getZ();
-    transform.transform.rotation.w = rotation.getW();
+  template<typename T, _component_getter_type t>
+  struct _component_getter {};
+
+  template<typename T>
+  struct _component_getter<T, MEMBER_VARIABLE> {
+    inline static double x(const T& v) { return v.x; }
+    inline static double y(const T& v) { return v.y; }
+    inline static double z(const T& v) { return v.z; }
+    inline static double w(const T& v) { return v.w; }
+  };
+
+  template<typename T>
+  struct _component_getter<T, MEMBER_METHOD> {
+    inline static double x(const T& v) { return v.x(); }
+    inline static double y(const T& v) { return v.y(); }
+    inline static double z(const T& v) { return v.z(); }
+    inline static double w(const T& v) { return v.w(); }
+  };
+
+  template<typename T>
+  struct _component_getter<T, MEMBER_METHOD_GETTER> {
+    inline static double x(const T& v) { return v.getX(); }
+    inline static double y(const T& v) { return v.getY(); }
+    inline static double z(const T& v) { return v.getZ(); }
+    inline static double w(const T& v) { return v.getW(); }
+  };
+
+  template<typename T>
+  struct component_getter {};
+
+  template<>
+  struct component_getter<Eigen::Quaternion<double>>
+    : _component_getter<Eigen::Quaternion<double>, MEMBER_METHOD> {};
+
+  template<>
+  struct component_getter<tf2::Quaternion>
+    : _component_getter<tf2::Quaternion, MEMBER_METHOD_GETTER> {};
+  
+  template<>
+  struct component_getter<geometry_msgs::Quaternion>
+    : _component_getter<geometry_msgs::Quaternion, MEMBER_VARIABLE> {};
+  
+  template<>
+  struct component_getter<geometry_msgs::Point>
+    : _component_getter<geometry_msgs::Point, MEMBER_VARIABLE> {};
+  
+
+  inline
+  tf2::Quaternion makeTf2QuaternionFromRPYDegree(double roll, double pitch, double yaw) {
+    tf2::Quaternion q;
+    q.setRPY(deg2rad(roll), deg2rad(pitch), deg2rad(yaw));
+    return q;
   }
+
+  inline
+  geometry_msgs::TransformStamped
+  makeTransformStamped(const std::string &parent_frame,
+		       const std::string &child_frame,
+		       double tx, double ty, double tz,
+		       double qx, double qy, double qz, double qw,
+		       ros::Time timestamp = ros::Time::now()) {
+    geometry_msgs::TransformStamped msg;
+    msg.header.stamp = timestamp;
+    msg.header.frame_id = parent_frame;
+    msg.child_frame_id = child_frame;
+    
+    msg.transform.translation.x = tx;
+    msg.transform.translation.y = ty;
+    msg.transform.translation.z = tz;
+
+    msg.transform.rotation.x = qx;
+    msg.transform.rotation.y = qy;
+    msg.transform.rotation.z = qz;
+    msg.transform.rotation.w = qw;
+
+    return msg;
+  }
+
+  template <typename Q>
+  inline geometry_msgs::TransformStamped
+  makeTransformStamped(const std::string &parent_frame,
+		       const std::string &child_frame,
+		       double tx, double ty, double tz,
+		       const Q& q,
+		       ros::Time timestamp = ros::Time::now()) {
+    return makeTransformStamped(parent_frame, child_frame,
+				tx, ty, tz,
+				component_getter<Q>::x(q),
+				component_getter<Q>::y(q),
+				component_getter<Q>::z(q),
+				component_getter<Q>::w(q),
+				timestamp);
+  }
+
+  template <typename V>
+  inline geometry_msgs::TransformStamped
+  makeTransformStamped(const std::string &parent_frame,
+		       const std::string &child_frame,
+		       const V& v,
+		       double qx, double qy, double qz, double qw,
+		       ros::Time timestamp = ros::Time::now()) {
+    return makeTransformStamped(parent_frame, child_frame,
+				component_getter<V>::x(v),
+				component_getter<V>::y(v),
+				component_getter<V>::z(v),
+				qx, qy, qz, qw,
+				timestamp);
+  }
+
+  template <typename V, typename Q>
+  inline geometry_msgs::TransformStamped
+  makeTransformStamped(const std::string &parent_frame,
+		       const std::string &child_frame,
+		       const V& v,
+		       const Q& q,
+		       ros::Time timestamp = ros::Time::now()) {
+    return makeTransformStamped(parent_frame, child_frame,
+				component_getter<V>::x(v),
+				component_getter<V>::y(v),
+				component_getter<V>::z(v),
+				component_getter<Q>::x(q),
+				component_getter<Q>::y(q),
+				component_getter<Q>::z(q),
+				component_getter<Q>::w(q),
+				timestamp);
+  }
+  
   
   inline void fillInverseIntoMsg(const geometry_msgs::Quaternion& quaternion, const geometry_msgs::Point& point, geometry_msgs::TransformStamped& msg) {
     tf2::Transform from(tf2::Quaternion(quaternion.x, quaternion.y, quaternion.z, quaternion.w),
@@ -85,9 +188,6 @@ namespace {
     msg.transform.rotation.w = inverse.getRotation().getW();
   }
 
-  inline double deg2rad(double deg) {
-    return deg * PI / 180;
-  }
 }
 
 #endif

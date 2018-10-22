@@ -38,6 +38,7 @@ void camera_info_callback(const sensor_msgs::CameraInfoConstPtr& msg) {
 
 int main(int argc, char* argv[]) {
   ros::init(argc, argv, "aruco_track");
+  ros::NodeHandle parent("");
   ros::NodeHandle nh("~");
 
   aruco_track::BoardEstimator estimator(nh, settings);
@@ -49,11 +50,11 @@ int main(int argc, char* argv[]) {
   float board_marker_separation;
   bool publish_debug_image;
   
-  nh.param("markers_dict", markers_dict, -1);
-  nh.param("board_num_x", board_num_x, -1);
-  nh.param("board_num_y", board_num_y, -1);
-  nh.param("board_marker_length", board_marker_length, -1.f);
-  nh.param("board_marker_separation", board_marker_separation, -1.f);
+  parent.param("markers_dict", markers_dict, -1);
+  parent.param("board_num_x", board_num_x, -1);
+  parent.param("board_num_y", board_num_y, -1);
+  parent.param("board_marker_length", board_marker_length, -1.f);
+  parent.param("board_marker_separation", board_marker_separation, -1.f);
   nh.param("publish_debug_image", publish_debug_image, false);
 
   if (markers_dict < 0) {
@@ -85,7 +86,7 @@ int main(int argc, char* argv[]) {
   // listening for camera info
   ros::Subscriber cam_info_sub = nh.subscribe("camera_info", 1, camera_info_callback);
 
-  estimator.InitSubscribers();
+  estimator.Init();
 
   while (nh.ok()) {
     ros::spin();

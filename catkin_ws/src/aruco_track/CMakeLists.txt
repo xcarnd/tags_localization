@@ -19,7 +19,6 @@ find_package(catkin REQUIRED COMPONENTS
   tf2
   tf2_ros
   tf2_geometry_msgs
-  message_generation
 )
 
 ## System dependencies are found with CMake's conventions
@@ -57,10 +56,9 @@ find_package(Eigen3 REQUIRED)
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-add_message_files(
-  FILES
-  SetHomePosition.msg
-)
+#add_message_files(
+#  FILES
+#)
 
 ## Generate services in the 'srv' folder
 # add_service_files(
@@ -77,10 +75,10 @@ add_message_files(
 # )
 
 ## Generate added messages and services with any dependencies listed here
-generate_messages(
-  DEPENDENCIES
-  std_msgs
-)
+#generate_messages(
+#  DEPENDENCIES
+#  std_msgs
+#)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -115,7 +113,7 @@ catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES aruco_track
 #  CATKIN_DEPENDS cv_bridge image_transport roscpp sensor_msgs std_msgs
-    CATKIN_DEPENDS message_runtime
+#    CATKIN_DEPENDS message_runtime
 #  DEPENDS system_lib
 )
 
@@ -147,7 +145,6 @@ include_directories(
 add_executable(aruco_track
   src/settings.cpp src/aruco_track.cpp src/estimator.cpp src/frame_def.cpp)
 add_executable(file_stream src/file_stream.cpp)
-add_executable(locator src/locator_main.cpp src/locator_node.cpp src/frame_def.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -168,10 +165,6 @@ target_link_libraries(aruco_track
 target_link_libraries(file_stream
   ${catkin_LIBRARIES}
   ${OpenCV_LIBRARIES}
-)
-
-target_link_libraries(locator
-  ${catkin_LIBRARIES}
 )
 
 #############
