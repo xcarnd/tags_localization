@@ -8,7 +8,7 @@
     <param name="board_marker_length" value="0.033" type="double"/>
     <param name="board_marker_separation" value="0.0067" type="double"/>
     <include file="$(find aruco_track)/launch/estimator.launch">
-	<arg name="tf_fcu2cam" value="0 0 0 180 0 90"/>
+	  <arg name="tf_fcu2cam" value="0 0 0 180 0 90"/>
     </include>
 
     <include file="$(find aruco_track)/launch/rviz.launch"/>

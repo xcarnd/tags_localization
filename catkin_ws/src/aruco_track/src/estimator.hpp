@@ -43,15 +43,17 @@ namespace aruco_track {
     const Settings& settings_;
     
     ros::NodeHandle& node_handle_;
-
     ros::NodeHandle& parent_node_handle_;
 
+    ros::Publisher board_pose_pub_;
     ros::Publisher estimated_pose_pub_;
 
     ros::Subscriber source_sub_;
 
     // subcriber for pose reported from mavros
-    ros::Subscriber pose_sub_;
+    ros::Subscriber fcu_pose_sub_;
+    // and also the board pose
+    ros::Subscriber board_pose_sub_;
 
     // tf broadcaster
     tf2_ros::StaticTransformBroadcaster static_transform_broadcaster_;
@@ -60,6 +62,8 @@ namespace aruco_track {
     // tf listener & filter
     tf2_ros::Buffer tf2_buffer_;
     tf2_ros::TransformListener tf2_listener_;
+    message_filters::Subscriber<geometry_msgs::PoseStamped> board_pose_filter_;
+    tf2_ros::MessageFilter<geometry_msgs::PoseStamped> tf2_filter_;
   public:
     BoardEstimator(ros::NodeHandle& nh,
 		   ros::NodeHandle& parent_nh,
@@ -77,11 +81,11 @@ namespace aruco_track {
     // subcribers
     void HandleImage(const sensor_msgs::ImageConstPtr& msg);
     void HandleFcuPose(const geometry_msgs::PoseStampedConstPtr& msg);
-
+    void HandleBoardPose(const geometry_msgs::PoseStampedConstPtr& msg);
   private:
     void EstimatePose(const cv::Mat& rvec, const cv::Mat& tvec);
 
-    void EstimateAndPublishPosition();
+    void EstimateAndPublishPosition(const geometry_msgs::PoseStampedConstPtr& msg);
 
   };
   

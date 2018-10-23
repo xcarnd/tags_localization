@@ -59,8 +59,13 @@ namespace aruco_track {
     : settings_(settings),
       node_handle_(nh),
       parent_node_handle_(parent_nh),
-      tf2_listener_(tf2_buffer_) {
+      tf2_listener_(tf2_buffer_),
+      tf2_filter_(board_pose_filter_, tf2_buffer_, "", 4, nullptr) {
+    board_pose_pub_ = node_handle_.advertise<geometry_msgs::PoseStamped>("board_pose", 1);
     estimated_pose_pub_ = node_handle_.advertise<geometry_msgs::PoseStamped>("estimated_pose", 1);
+
+    tf2_filter_.setTargetFrames({"map", "board_center"});
+    tf2_filter_.registerCallback(&BoardEstimator::EstimateAndPublishPosition, this);
   }
 
   void BoardEstimator::HandleFcuPose(const geometry_msgs::PoseStampedConstPtr& msg) {
@@ -184,17 +189,35 @@ namespace aruco_track {
     // as the document says, rvec + tvec is the transformation from points
     // in board frame to camera frame.
     //
-    // in other words, this is how to get camera -> board tf transform.
-    auto msg = makeTransformStamped("camera", "board",
-				    tvec.at<double>(0, 0),
-				    tvec.at<double>(1, 0),
-				    tvec.at<double>(2, 0),
-				    q);
-    transform_broadcaster_.sendTransform(msg);
-    //    this->EstimateAndPublishPosition();
+    // if such transformation is applied with the origin point of board frame, 
+    // we then will have the position and orientation information about 
+    // the origin point in camera frame
+    geometry_msgs::PoseStamped msg;
+    msg.header.frame_id = "camera";
+    msg.header.stamp = ros::Time::now();
+    msg.pose.position.x = tvec.at<double>(0, 0);
+    msg.pose.position.y = tvec.at<double>(1, 0);
+    msg.pose.position.z = tvec.at<double>(2, 0);
+    msg.pose.orientation.x = q.x();
+    msg.pose.orientation.y = q.y();
+    msg.pose.orientation.z = q.z();
+    msg.pose.orientation.w = q.w();
+
+    board_pose_pub_.publish(msg);
+
+    // or in other meants, this is also how to 
+    // get camera -> board tf transform.
+    // that's exactly what HandleBoardPose does.
   }
 
-  void BoardEstimator::EstimateAndPublishPosition() {
+  void BoardEstimator::HandleBoardPose(const geometry_msgs::PoseStampedConstPtr& msg) {
+    auto tf_msg = makeTransformStamped("camera", "board",
+          msg->pose.position,
+          msg->pose.orientation);
+    transform_broadcaster_.sendTransform(tf_msg);
+  }
+
+  void BoardEstimator::EstimateAndPublishPosition(const geometry_msgs::PoseStampedConstPtr& msg) {
     // once the tf tree:
     //   map -> fcu_flu -> fcu -> camera -> board -> board_center
     // has built up, we will know how to rotate map frame to make it
@@ -244,13 +267,17 @@ namespace aruco_track {
     // listening for image
     source_sub_ =
       node_handle_.subscribe("source", 1,
-			     &BoardEstimator::HandleImage, this);
+			      &BoardEstimator::HandleImage, this);
     ROS_INFO("Listening for source topic.");
 
-    pose_sub_ =
-      node_handle_.subscribe("pose", 1,
-			     &BoardEstimator::HandleFcuPose, this);
-    ROS_INFO("Listening for pose topic");
+    board_pose_sub_ = 
+      node_handle_.subscribe("board_pose", 1,
+            &BoardEstimator::HandleBoardPose, this);
+
+    fcu_pose_sub_ =
+      node_handle_.subscribe("fcu_pose", 1,
+			      &BoardEstimator::HandleFcuPose, this);
+    ROS_INFO("Listening for fcu_pose topic");
 
     // setting up static transforms
     // we will have a "board_center" frame, whose origin is at the
