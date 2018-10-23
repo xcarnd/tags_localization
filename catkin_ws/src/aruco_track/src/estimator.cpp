@@ -53,14 +53,14 @@ using namespace cv::aruco;
 
 namespace aruco_track {
 
-  BoardEstimator::BoardEstimator(ros::NodeHandle& node_handle, const Settings& settings)
+  BoardEstimator::BoardEstimator(ros::NodeHandle& nh,
+				 ros::NodeHandle& parent_nh,
+				 const Settings& settings)
     : settings_(settings),
-      node_handle_(node_handle),
-      tf2_listener_(tf2_buffer_),
-      tf2_filter_(board_est_transform_sub_, tf2_buffer_, "map", 8, nullptr) {
+      node_handle_(nh),
+      parent_node_handle_(parent_nh),
+      tf2_listener_(tf2_buffer_) {
     estimated_pose_pub_ = node_handle_.advertise<geometry_msgs::PoseStamped>("estimated_pose", 1);
-    board_est_transform_sub_.subscribe(node_handle_, "board_pose", 8);
-    tf2_filter_.registerCallback(&BoardEstimator::EstimateAndPublishPosition, this);
   }
 
   void BoardEstimator::HandleFcuPose(const geometry_msgs::PoseStampedConstPtr& msg) {
@@ -80,24 +80,22 @@ namespace aruco_track {
 
     // in this msg handler, we will publish map -> fcu_flu and fcu_flu -> fcu
 
-    std::vector<geometry_msgs::TransformStamped> transforms(2);
     // map -> fcu_flu can be broken into two part: position, which
     // is contained in the position part of msg. orientation, which is a
     // fixed quaternion.
     auto msg_map_to_fcu_flu =
       makeTransformStamped("map", "fcu_flu",
-			   msg->pose.position,
-			   makeTf2QuaternionFromRPYDegree(0, 0, 90));
-    transforms.push_back(msg_map_to_fcu_flu);
+    			   msg->pose.position,
+    			   makeTf2QuaternionFromRPYDegree(0, 0, 90));
+    transform_broadcaster_.sendTransform(msg_map_to_fcu_flu);
 
     // fcu_flu -> fcu is just the orientation part of msg
     auto msg_fcu_flu_to_fcu =
       makeTransformStamped("fcu_flu", "fcu",
-			   0, 0, 0,
-			   msg->pose.orientation);
-    transforms.push_back(msg_fcu_flu_to_fcu);
+    			   0, 0, 0,
+    			   msg->pose.orientation);
 
-    transform_broadcaster_.sendTransform(transforms);
+    transform_broadcaster_.sendTransform(msg_fcu_flu_to_fcu);
   }
 
   void BoardEstimator::HandleImage(const sensor_msgs::ImageConstPtr& msg) {
@@ -193,9 +191,10 @@ namespace aruco_track {
 				    tvec.at<double>(2, 0),
 				    q);
     transform_broadcaster_.sendTransform(msg);
+    //    this->EstimateAndPublishPosition();
   }
 
-  void BoardEstimator::EstimateAndPublishPosition(const geometry_msgs::TransformStampedConstPtr& msg) {
+  void BoardEstimator::EstimateAndPublishPosition() {
     // once the tf tree:
     //   map -> fcu_flu -> fcu -> camera -> board -> board_center
     // has built up, we will know how to rotate map frame to make it
@@ -206,6 +205,8 @@ namespace aruco_track {
     // so we only need to care about the rotation part of transform.
 
     // so what is the center of the camera in board_center frame?
+    geometry_msgs::TransformStamped tf0 =
+      tf2_buffer_.lookupTransform("camera", "board_center", ros::Time(0));
     geometry_msgs::PointStamped pt_in;
     pt_in.header.frame_id = "camera";
     pt_in.header.stamp = ros::Time::now();
@@ -213,7 +214,7 @@ namespace aruco_track {
     pt_in.point.y = 0;
     pt_in.point.z = 0;
     geometry_msgs::PointStamped pt_out;
-    tf2::doTransform(pt_in, pt_out, *msg);
+    tf2::doTransform(pt_in, pt_out, tf0);
     
     // what if we rotate that point in board_center into map? notice that we only
     // need rotation here, so we will throw away any positional information in the
@@ -254,16 +255,22 @@ namespace aruco_track {
     // setting up static transforms
     // we will have a "board_center" frame, whose origin is at the
     // center of the board frame
+    int board_num_x, board_num_y;
+    double board_marker_length, board_marker_separation;
+    parent_node_handle_.getParam("board_num_x", board_num_x);
+    parent_node_handle_.getParam("board_num_y", board_num_y);
+    parent_node_handle_.getParam("board_marker_length", board_marker_length);
+    parent_node_handle_.getParam("board_marker_separation", board_marker_separation);
 
     // calculating the size of the board, then get the center.
-    double board_width = settings_.board_num_x() * settings_.board_marker_length()
-      + (settings_.board_num_x() - 1) * settings_.board_marker_separation();
-    double board_height = settings_.board_num_y() * settings_.board_marker_length()
-      + (settings_.board_num_y() - 1) * settings_.board_marker_separation();
+    double board_width = board_num_x * board_marker_length
+      + (board_num_x - 1) * board_marker_separation;
+    double board_height = board_num_y * board_marker_length
+      + (board_num_y - 1) * board_marker_separation;
     double center_x = board_width / 2;
     double center_y = board_height / 2;
 
-    ROS_DEBUG("board width: %.2f, board height: %.2f. Creating static transform from board -> board_center at the center of the board.",
+    ROS_INFO("board width: %.2f, board height: %.2f. Creating static transform from board -> board_center at the center of the board.",
 	      board_width, board_height);
 
     std::vector<geometry_msgs::TransformStamped> static_tfs;

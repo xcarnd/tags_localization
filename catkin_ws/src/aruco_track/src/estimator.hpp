@@ -44,6 +44,8 @@ namespace aruco_track {
     
     ros::NodeHandle& node_handle_;
 
+    ros::NodeHandle& parent_node_handle_;
+
     ros::Publisher estimated_pose_pub_;
 
     ros::Subscriber source_sub_;
@@ -58,10 +60,10 @@ namespace aruco_track {
     // tf listener & filter
     tf2_ros::Buffer tf2_buffer_;
     tf2_ros::TransformListener tf2_listener_;
-    message_filters::Subscriber<geometry_msgs::TransformStamped> board_est_transform_sub_;
-    tf2_ros::MessageFilter<geometry_msgs::TransformStamped> tf2_filter_;
   public:
-    BoardEstimator(ros::NodeHandle& node_handle, const Settings& settings);
+    BoardEstimator(ros::NodeHandle& nh,
+		   ros::NodeHandle& parent_nh,
+		   const Settings& settings);
     
     bool ProcessFrame(const cv::InputArray& frame,
 		      cv::Mat& rvec, cv::Mat& tvec,
@@ -79,7 +81,7 @@ namespace aruco_track {
   private:
     void EstimatePose(const cv::Mat& rvec, const cv::Mat& tvec);
 
-    void EstimateAndPublishPosition(const geometry_msgs::TransformStampedConstPtr& msg);
+    void EstimateAndPublishPosition();
 
   };
   

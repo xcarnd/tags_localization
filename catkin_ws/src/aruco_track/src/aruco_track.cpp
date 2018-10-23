@@ -38,10 +38,10 @@ void camera_info_callback(const sensor_msgs::CameraInfoConstPtr& msg) {
 
 int main(int argc, char* argv[]) {
   ros::init(argc, argv, "aruco_track");
-  ros::NodeHandle parent("");
+  ros::NodeHandle parent;
   ros::NodeHandle nh("~");
 
-  aruco_track::BoardEstimator estimator(nh, settings);
+  aruco_track::BoardEstimator estimator(nh, parent, settings);
   
   int markers_dict;
   int board_num_x;
@@ -55,7 +55,7 @@ int main(int argc, char* argv[]) {
   parent.param("board_num_y", board_num_y, -1);
   parent.param("board_marker_length", board_marker_length, -1.f);
   parent.param("board_marker_separation", board_marker_separation, -1.f);
-  nh.param("publish_debug_image", publish_debug_image, false);
+  parent.param("publish_debug_image", publish_debug_image, false);
 
   if (markers_dict < 0) {
     ROS_ERROR("markers_dict not set properly.");

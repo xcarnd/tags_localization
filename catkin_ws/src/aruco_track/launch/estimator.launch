@@ -8,8 +8,8 @@
   <node name="aruco_track" pkg="aruco_track" type="aruco_track" args="_publish_debug_image:=true">
     <remap from="~source" to="/raspicam_node/image" />
     <remap from="~camera_info" to="/raspicam_node/camera_info" />
-    <remap from="~estimated_pose" to="/mavros/local_position/pose" />
-    
+    <remap from="~pose" to="/mavros/local_position/pose" />
+    <!-- <remap from="~estimated_pose" to="/mavros/local_position/pose" /> -->
     <param name="~publish_debug_image" value="false" type="bool"/>
     <param name="~tf_fcu2cam" value="$(arg tf_fcu2cam)" type="string"/>
   </node>

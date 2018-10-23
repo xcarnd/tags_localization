@@ -5,11 +5,10 @@
     <param name="markers_dict" value="8" type="int"/>
     <param name="board_num_x" value="7" type="int"/>
     <param name="board_num_y" value="5" type="int"/>
-    <param name="board_marker_size" value="0.04" type="double"/>
-    <param name="board_marker_separation" value="0.01" type="double"/>
-
+    <param name="board_marker_length" value="0.033" type="double"/>
+    <param name="board_marker_separation" value="0.0067" type="double"/>
     <include file="$(find aruco_track)/launch/estimator.launch">
-	<arg name="tf_fcu2cam" value="0.2 0 0.5 -90 0 -90"/>
+	<arg name="tf_fcu2cam" value="0 0 0 180 0 90"/>
     </include>
 
     <include file="$(find aruco_track)/launch/rviz.launch"/>
