@@ -144,7 +144,9 @@ include_directories(
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(aruco_track
   src/settings.cpp src/aruco_track.cpp src/estimator.cpp src/frame_def.cpp)
-add_executable(file_stream src/file_stream.cpp)
+
+add_executable(rviz_addons
+  src/rviz_addons.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -162,9 +164,8 @@ target_link_libraries(aruco_track
   ${OpenCV_LIBRARIES}
 )
 
-target_link_libraries(file_stream
+target_link_libraries(rviz_addons
   ${catkin_LIBRARIES}
-  ${OpenCV_LIBRARIES}
 )
 
 #############

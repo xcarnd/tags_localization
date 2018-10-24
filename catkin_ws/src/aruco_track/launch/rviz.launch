@@ -3,4 +3,7 @@
   <node name="aruco_track_rviz" pkg="rviz" type="rviz" args="-d $(find aruco_track)/resources/default.rviz">
     <remap from="~image" to="/raspicam_node/image" />
   </node>
+
+  <node name="aruco_track_rviz_addons" pkg="aruco_track" type="rviz_addons">
+  </node>
 </launch>
