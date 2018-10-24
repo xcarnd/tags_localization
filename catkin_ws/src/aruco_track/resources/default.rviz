@@ -5,6 +5,7 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Global Options1
+        - /Status1
         - /TF1
         - /TF1/Frames1
       Splitter Ratio: 0.5
@@ -69,9 +70,9 @@ Visualization Manager:
       Frames:
         All Enabled: false
         board:
-          Value: false
-        board_center:
           Value: true
+        board_center:
+          Value: false
         camera:
           Value: false
         fcu:
@@ -108,7 +109,7 @@ Visualization Manager:
       Axes Radius: 0.10000000149011612
       Class: rviz/Pose
       Color: 0; 255; 0
-      Enabled: true
+      Enabled: false
       Head Length: 0.30000001192092896
       Head Radius: 0.10000000149011612
       Name: RawIMU
@@ -116,6 +117,21 @@ Visualization Manager:
       Shaft Radius: 0.05000000074505806
       Shape: Arrow
       Topic: /mavros/local_position/pose
+      Unreliable: false
+      Value: false
+    - Alpha: 1
+      Axes Length: 1
+      Axes Radius: 0.10000000149011612
+      Class: rviz/Pose
+      Color: 255; 25; 0
+      Enabled: true
+      Head Length: 0.30000001192092896
+      Head Radius: 0.10000000149011612
+      Name: Pose
+      Shaft Length: 1
+      Shaft Radius: 0.05000000074505806
+      Shape: Arrow
+      Topic: /hub/aruco_track/estimated_pose
       Unreliable: false
       Value: true
   Enabled: true
@@ -143,7 +159,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 8.880331039428711
+      Distance: 4.499052047729492
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -158,10 +174,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: -0.20979711413383484
+      Pitch: 1.1597967147827148
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 4.827226161956787
+      Yaw: 2.19722318649292
     Saved: ~
 Window Geometry:
   Displays:
@@ -182,4 +198,4 @@ Window Geometry:
     collapsed: false
   Width: 1293
   X: 600
-  Y: 79
+  Y: 27

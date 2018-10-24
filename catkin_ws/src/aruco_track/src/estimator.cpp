@@ -60,9 +60,11 @@ namespace aruco_track {
       node_handle_(nh),
       parent_node_handle_(parent_nh),
       tf2_listener_(tf2_buffer_),
-      tf2_filter_(board_pose_filter_, tf2_buffer_, "", 4, nullptr) {
+      tf2_filter_(filter_sub_, tf2_buffer_, "", 4, nullptr) {
     board_pose_pub_ = node_handle_.advertise<geometry_msgs::PoseStamped>("board_pose", 1);
     estimated_pose_pub_ = node_handle_.advertise<geometry_msgs::PoseStamped>("estimated_pose", 1);
+
+    filter_sub_.subscribe(node_handle_, "fcu_pose", 1);
 
     tf2_filter_.setTargetFrames({"map", "board_center"});
     tf2_filter_.registerCallback(&BoardEstimator::EstimateAndPublishPosition, this);
@@ -229,7 +231,7 @@ namespace aruco_track {
 
     // so what is the center of the camera in board_center frame?
     geometry_msgs::TransformStamped tf0 =
-      tf2_buffer_.lookupTransform("camera", "board_center", ros::Time(0));
+      tf2_buffer_.lookupTransform("board_center", "camera", ros::Time(0));
     geometry_msgs::PointStamped pt_in;
     pt_in.header.frame_id = "camera";
     pt_in.header.stamp = ros::Time::now();
@@ -255,10 +257,7 @@ namespace aruco_track {
     estimated_pose.header.stamp = ros::Time::now();
     estimated_pose.header.frame_id = "map";
     estimated_pose.pose.position = pt_final.point;
-    estimated_pose.pose.orientation.x = 0;
-    estimated_pose.pose.orientation.y = 0;
-    estimated_pose.pose.orientation.z = 0;
-    estimated_pose.pose.orientation.w = 1;
+    estimated_pose.pose.orientation = msg->pose.orientation;
     
     this->estimated_pose_pub_.publish(estimated_pose);
   }

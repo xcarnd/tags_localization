@@ -62,7 +62,7 @@ namespace aruco_track {
     // tf listener & filter
     tf2_ros::Buffer tf2_buffer_;
     tf2_ros::TransformListener tf2_listener_;
-    message_filters::Subscriber<geometry_msgs::PoseStamped> board_pose_filter_;
+    message_filters::Subscriber<geometry_msgs::PoseStamped> filter_sub_;
     tf2_ros::MessageFilter<geometry_msgs::PoseStamped> tf2_filter_;
   public:
     BoardEstimator(ros::NodeHandle& nh,
