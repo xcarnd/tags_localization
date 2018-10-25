@@ -24,15 +24,40 @@
 #define _ARUCO_TRACK_BASE_NODE_HPP_
 
 #include <string>
+#include <exception>
 
 #include <ros/ros.h>
 
 namespace aruco_track {
 
-    class BaseNode {
+    class NodeBase {
     protected:
-        inline BaseNode(int argc, char **argv, const std::string& node_name) {
+        inline NodeBase(int argc, char **argv, const std::string& node_name) {
             ros::init(argc, argv, node_name);
+        }
+    };
+
+    class RunnableNode : public NodeBase {
+    protected:
+        ros::NodeHandle parent_nh_;
+        ros::NodeHandle nh_;
+    protected:
+        inline RunnableNode(int argc, char **argv, const std::string& node_name)
+            : NodeBase(argc, argv, node_name),
+              parent_nh_(""),
+              nh_("~") { }
+        virtual void Init() {}
+    public:
+        inline int Run() {
+            try {
+                this->Init();
+                while (nh_.ok()) {
+                    ros::spin();
+                }
+            } catch (const std::exception& e) {
+                ROS_ERROR("Exception caught while running node.\n  what() => %s", e.what());
+                return -1;
+            }
         }
     };
 

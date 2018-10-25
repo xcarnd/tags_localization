@@ -23,25 +23,25 @@
 #ifndef _ARUCO_TRACK_RVIZ_ADDONS_HPP_
 #define _ARUCO_TRACK_RVIZ_ADDONS_HPP_
 
+#include <geometry_msgs/PoseStamped.h>
+
 #include "base_node.hpp"
 
 namespace aruco_track {
 
-  class RVizAddonsNode : public BaseNode {
+  class RVizAddonsNode : public RunnableNode {
   private:
-    ros::NodeHandle nh_;
-    ros::NodeHandle parent_nh_;
+    ros::Subscriber pose_sub_;
+
+    ros::Publisher viz_object_pub_;
+  protected:
+    virtual void Init();
+
+  private:
+    void HandlePose(const geometry_msgs::PoseStampedConstPtr& msg);
   public:
     inline RVizAddonsNode(int argc, char **argv, const std::string& node_name)
-      : BaseNode(argc, argv, node_name),
-	nh_("~") { }
-
-    inline int Run() {
-      while (nh_.ok()) {
-	ros::spin();
-      }
-      return 0;
-    }
+      : RunnableNode(argc, argv, node_name) { }
   };
   
 }

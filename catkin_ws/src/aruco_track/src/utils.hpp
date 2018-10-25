@@ -40,6 +40,10 @@ namespace aruco_track {
     return deg * PI / 180;
   }
 
+  inline double rad2deg(double rad) {
+    return rad * 180 / PI;
+  }
+
   typedef enum {
     MEMBER_VARIABLE,
     MEMBER_METHOD,

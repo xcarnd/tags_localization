@@ -5,5 +5,6 @@
   </node>
 
   <node name="aruco_track_rviz_addons" pkg="aruco_track" type="rviz_addons">
+    <remap from="~pose" to="/mavros/local_position/pose" />
   </node>
 </launch>
