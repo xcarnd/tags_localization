@@ -34,6 +34,7 @@
 #include <message_filters/subscriber.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <sensor_msgs/Image.h>
+
 #include "settings.hpp"
 
 namespace aruco_track {
@@ -45,15 +46,14 @@ namespace aruco_track {
     ros::NodeHandle& node_handle_;
     ros::NodeHandle& parent_node_handle_;
 
-    ros::Publisher board_pose_pub_;
+    // estimated camera pose w.r.t. to board frame
+    ros::Publisher camera_pose_pub_;
+
+    // estimated pose w.r.t. to map frame
     ros::Publisher estimated_pose_pub_;
 
+    // subscriber for the camera captured image
     ros::Subscriber source_sub_;
-
-    // subcriber for pose reported from mavros
-    ros::Subscriber fcu_pose_sub_;
-    // and also the board pose
-    ros::Subscriber board_pose_sub_;
 
     // tf broadcaster
     tf2_ros::StaticTransformBroadcaster static_transform_broadcaster_;
@@ -80,8 +80,6 @@ namespace aruco_track {
 
     // subcribers
     void HandleImage(const sensor_msgs::ImageConstPtr& msg);
-    void HandleFcuPose(const geometry_msgs::PoseStampedConstPtr& msg);
-    void HandleBoardPose(const geometry_msgs::PoseStampedConstPtr& msg);
   private:
     void EstimatePose(const cv::Mat& rvec, const cv::Mat& tvec);
 

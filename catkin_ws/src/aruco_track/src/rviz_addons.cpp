@@ -61,7 +61,7 @@ namespace aruco_track {
     //
     visualization_msgs::Marker marker;
     marker.header.frame_id = "map";
-    marker.header.stamp = ros::Time();
+    marker.header.stamp = ros::Time::now();
     marker.type = visualization_msgs::Marker::TRIANGLE_LIST;
     marker.action = visualization_msgs::Marker::MODIFY;
     marker.pose.position = msg->pose.position;
@@ -97,7 +97,7 @@ namespace aruco_track {
     // text for position and orientation (in euler angles)
     visualization_msgs::Marker text_marker;
     text_marker.header.frame_id = "map";
-    text_marker.header.stamp = ros::Time();
+    text_marker.header.stamp = ros::Time::now();
     text_marker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
     text_marker.action = visualization_msgs::Marker::MODIFY;
     text_marker.pose.position.x = 0;

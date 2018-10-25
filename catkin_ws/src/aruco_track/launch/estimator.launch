@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <launch>
-  <arg name="tf_fcu2cam"/>
+  <arg name="tf_map2bc" default="0 0 0 0 0 0" />
 
   <node name="republish" pkg="image_transport" type="republish"
-	args="compressed in:=/raspicam_node/image raw out:=/raspicam_node/image" />
+	  args="compressed in:=/raspicam_node/image raw out:=/raspicam_node/image" />
   
   <node name="aruco_track" pkg="aruco_track" type="aruco_track" args="_publish_debug_image:=true">
     <remap from="~source" to="/raspicam_node/image" />
@@ -11,6 +11,6 @@
     <remap from="~fcu_pose" to="/mavros/local_position/pose" />
     <remap from="~estimated_pose" to="/mavros/vision_pose/pose" />
     <param name="~publish_debug_image" value="false" type="bool"/>
-    <param name="~tf_fcu2cam" value="$(arg tf_fcu2cam)" type="string"/>
+    <param name="~tf_map2bc" value="$(arg tf_map2bc)" type="string"/>
   </node>
 </launch>

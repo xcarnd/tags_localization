@@ -24,10 +24,6 @@
 // Detect, estimate pose from board configuration and broadcast
 // tf2 messages.
 
-#include <vector>
-#include <memory>
-#include <sstream>
-
 #include <ros/ros.h>
 #include <cv_bridge/cv_bridge.h>
 #include <geometry_msgs/PoseStamped.h>
@@ -60,49 +56,15 @@ namespace aruco_track {
       node_handle_(nh),
       parent_node_handle_(parent_nh),
       tf2_listener_(tf2_buffer_),
-      tf2_filter_(filter_sub_, tf2_buffer_, "", 4, nullptr) {
-    board_pose_pub_ = node_handle_.advertise<geometry_msgs::PoseStamped>("board_pose", 1);
+      tf2_filter_(filter_sub_, tf2_buffer_, "map", 4, nullptr) {
+        
+    camera_pose_pub_ = node_handle_.advertise<geometry_msgs::PoseStamped>("camera_pose", 1);
+    
     estimated_pose_pub_ = node_handle_.advertise<geometry_msgs::PoseStamped>("estimated_pose", 1);
 
-    filter_sub_.subscribe(node_handle_, "fcu_pose", 1);
+    filter_sub_.subscribe(nh, "camera_pose", 4);
 
-    tf2_filter_.setTargetFrames({"map", "board_center"});
     tf2_filter_.registerCallback(&BoardEstimator::EstimateAndPublishPosition, this);
-  }
-
-  void BoardEstimator::HandleFcuPose(const geometry_msgs::PoseStampedConstPtr& msg) {
-    // tf tree:
-    // map -> fcu_flu -> fcu -> camera -> board -> board_center
-    //
-    // what we want to know is the rotational transformation from map to board_center
-    //
-    // static tf:
-    // fcu -> camera
-    // board -> board_center
-    //
-    // dynamic rotation:
-    // map -> fcu_flu
-    // fcu_flu -> fcu
-    // camera -> board
-
-    // in this msg handler, we will publish map -> fcu_flu and fcu_flu -> fcu
-
-    // map -> fcu_flu can be broken into two part: position, which
-    // is contained in the position part of msg. orientation, which is a
-    // fixed quaternion.
-    auto msg_map_to_fcu_flu =
-      makeTransformStamped("map", "fcu_flu",
-    			   msg->pose.position,
-    			   makeTf2QuaternionFromRPYDegree(0, 0, 90));
-    transform_broadcaster_.sendTransform(msg_map_to_fcu_flu);
-
-    // fcu_flu -> fcu is just the orientation part of msg
-    auto msg_fcu_flu_to_fcu =
-      makeTransformStamped("fcu_flu", "fcu",
-    			   0, 0, 0,
-    			   msg->pose.orientation);
-
-    transform_broadcaster_.sendTransform(msg_fcu_flu_to_fcu);
   }
 
   void BoardEstimator::HandleImage(const sensor_msgs::ImageConstPtr& msg) {
@@ -184,80 +146,46 @@ namespace aruco_track {
     static cv::Mat rot_mat;
 
     cv::Rodrigues(rvec, rot_mat);
-    Eigen::Map<Eigen::Matrix<double, 3, 3, Eigen::RowMajor> > mat(rot_mat.ptr<double>());
-
-    Eigen::Quaternion<double> q(mat);
-
-    // as the document says, rvec + tvec is the transformation from points
-    // in board frame to camera frame.
+    // as mentioned in the document, rvec + tvec is the transformation from
+    // points in board frame to camera frame.
     //
-    // if such transformation is applied with the origin point of board frame, 
-    // we then will have the position and orientation information about 
-    // the origin point in camera frame
+    // what we want is the camera pose w.r.t. board frame (and since 
+    // board -> board_center is static, we can easily know camera pose
+    // w.r.t. board_center frame once we get what we want)
+    //
+    // so we need the inverse. once we know how to transform points in camera
+    // frame to board frame, we can apply that on the origin of the 
+    // camera and we will see the pose of the camera w.r.t. board.
+    tf2::Transform forward(
+      tf2::Matrix3x3{
+        rot_mat.at<double>(0, 0), rot_mat.at<double>(0, 1), rot_mat.at<double>(0, 2),
+        rot_mat.at<double>(1, 0), rot_mat.at<double>(1, 1), rot_mat.at<double>(1, 2),
+        rot_mat.at<double>(2, 0), rot_mat.at<double>(2, 1), rot_mat.at<double>(2, 2)
+      },
+      tf2::Vector3 {
+        tvec.at<double>(0, 0),
+        tvec.at<double>(1, 0),
+        tvec.at<double>(2, 0)
+      });
+    
+    const tf2::Transform& backward = forward.inverse();
+    tf2::Transform in(
+      tf2::Quaternion(0, 0, 0, 1),
+      tf2::Vector3(0, 0, 0));
+    tf2::Transform out = backward * in;
+
     geometry_msgs::PoseStamped msg;
-    msg.header.frame_id = "camera";
+    tf2::toMsg(out, msg.pose);
+    msg.header.frame_id = "board";
     msg.header.stamp = ros::Time::now();
-    msg.pose.position.x = tvec.at<double>(0, 0);
-    msg.pose.position.y = tvec.at<double>(1, 0);
-    msg.pose.position.z = tvec.at<double>(2, 0);
-    msg.pose.orientation.x = q.x();
-    msg.pose.orientation.y = q.y();
-    msg.pose.orientation.z = q.z();
-    msg.pose.orientation.w = q.w();
 
-    board_pose_pub_.publish(msg);
-
-    // or in other meants, this is also how to 
-    // get camera -> board tf transform.
-    // that's exactly what HandleBoardPose does.
-  }
-
-  void BoardEstimator::HandleBoardPose(const geometry_msgs::PoseStampedConstPtr& msg) {
-    auto tf_msg = makeTransformStamped("camera", "board",
-          msg->pose.position,
-          msg->pose.orientation);
-    transform_broadcaster_.sendTransform(tf_msg);
+    this->camera_pose_pub_.publish(msg);
   }
 
   void BoardEstimator::EstimateAndPublishPosition(const geometry_msgs::PoseStampedConstPtr& msg) {
-    // once the tf tree:
-    //   map -> fcu_flu -> fcu -> camera -> board -> board_center
-    // has built up, we will know how to rotate map frame to make it
-    // aligning with board_center
-    //
-    // we then know how to transform points in board_center to map.
-    // we will suppose the origin of map will coincide with board_center,
-    // so we only need to care about the rotation part of transform.
-
-    // so what is the center of the camera in board_center frame?
-    geometry_msgs::TransformStamped tf0 =
-      tf2_buffer_.lookupTransform("board_center", "camera", ros::Time(0));
-    geometry_msgs::PointStamped pt_in;
-    pt_in.header.frame_id = "camera";
-    pt_in.header.stamp = ros::Time::now();
-    pt_in.point.x = 0;
-    pt_in.point.y = 0;
-    pt_in.point.z = 0;
-    geometry_msgs::PointStamped pt_out;
-    tf2::doTransform(pt_in, pt_out, tf0);
-    
-    // what if we rotate that point in board_center into map? notice that we only
-    // need rotation here, so we will throw away any positional information in the
-    // transformation
-    geometry_msgs::TransformStamped tf =
-      tf2_buffer_.lookupTransform("map", "board_center", ros::Time(0));
-    tf.transform.translation.x = 0;
-    tf.transform.translation.y = 0;
-    tf.transform.translation.z = 0;
-    geometry_msgs::PointStamped pt_final;
-    tf2::doTransform(pt_out, pt_final, tf);
-
-    // finally, we can publish that out!
     geometry_msgs::PoseStamped estimated_pose;
-    estimated_pose.header.stamp = ros::Time::now();
-    estimated_pose.header.frame_id = "map";
-    estimated_pose.pose.position = pt_final.point;
-    estimated_pose.pose.orientation = msg->pose.orientation;
+    
+    tf2_buffer_.transform(*msg, estimated_pose, "map");
     
     this->estimated_pose_pub_.publish(estimated_pose);
   }
@@ -267,16 +195,7 @@ namespace aruco_track {
     source_sub_ =
       node_handle_.subscribe("source", 1,
 			      &BoardEstimator::HandleImage, this);
-    ROS_INFO("Listening for source topic.");
-
-    board_pose_sub_ = 
-      node_handle_.subscribe("board_pose", 1,
-            &BoardEstimator::HandleBoardPose, this);
-
-    fcu_pose_sub_ =
-      node_handle_.subscribe("fcu_pose", 1,
-			      &BoardEstimator::HandleFcuPose, this);
-    ROS_INFO("Listening for fcu_pose topic");
+    ROS_INFO("Listening for camera captured image source topic.");
 
     // setting up static transforms
     // we will have a "board_center" frame, whose origin is at the
@@ -301,35 +220,19 @@ namespace aruco_track {
 
     std::vector<geometry_msgs::TransformStamped> static_tfs;
 
-    auto tf_board_to_board_center = makeTransformStamped("board", "board_center",
-							 center_x, center_y, 0,
+    auto tf_board_to_board_center = makeTransformStamped("board_center", "board",
+							 -center_x, -center_y, 0,
 							 0, 0, 0, 1);
-
     static_tfs.push_back(tf_board_to_board_center);
 
-    std::string tf_fcu2cam;
-    if (!node_handle_.getParam("tf_fcu2cam", tf_fcu2cam)) {
-      ROS_WARN("tf_fcu2cam not set. Using '0 0 0 0 0 0' as the default value.");
-      tf_fcu2cam = "0 0 0 0 0 0";
-    }
-
-    std::istringstream iss(tf_fcu2cam);
-    double tx, ty, tz, r, p, y;
-    iss>>tx>>ty>>tz>>r>>p>>y;
-	
-    tf2::Quaternion q_helper;
-    q_helper.setRPY(deg2rad(r), deg2rad(p), deg2rad(y));
-    double qx = q_helper.getX();
-    double qy = q_helper.getY();
-    double qz = q_helper.getZ();
-    double qw = q_helper.getW();
-
-    auto tf_fcu_to_camera =
-      makeTransformStamped("fcu", "camera",
-			   tx, ty, tz,
-			   makeTf2QuaternionFromRPYDegree(r, p, y));
-
-    static_tfs.push_back(tf_fcu_to_camera);
+    std::string tf_map2bc;
+    node_handle_.getParam("tf_map2bc", tf_map2bc);
+    geometry_msgs::TransformStamped tf_map_to_bc;
+    tf_map_to_bc.header.frame_id = "map";
+    tf_map_to_bc.header.stamp = ros::Time::now();
+    tf_map_to_bc.child_frame_id = "board_center";
+    parseTransformStringInto(tf_map_to_bc.transform, tf_map2bc);
+    static_tfs.push_back(tf_map_to_bc);
 
     static_transform_broadcaster_.sendTransform(static_tfs);
   }

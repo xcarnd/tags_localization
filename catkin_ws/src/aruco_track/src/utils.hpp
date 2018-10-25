@@ -105,6 +105,57 @@ namespace aruco_track {
     return q;
   }
 
+  inline void
+  fillTransform(geometry_msgs::Transform& out,
+                double tx, double ty, double tz,
+                double qx, double qy, double qz, double qw) {
+    out.translation.x = tx;
+    out.translation.y = ty;
+    out.translation.z = tz;
+    out.rotation.x = qx;
+    out.rotation.y = qy;
+    out.rotation.z = qz;
+    out.rotation.w = qw;
+  }
+
+  template <typename Q>
+  inline void
+  fillTransform(geometry_msgs::Transform& out,
+                double tx, double ty, double tz,
+                const Q& q) {
+    fillTransform(out,
+                  tx, ty, tz,
+                  component_getter<Q>::x(q),
+                  component_getter<Q>::y(q),
+                  component_getter<Q>::z(q),
+                  component_getter<Q>::w(q));
+  }
+
+  template <typename V>
+  inline void
+  fillTransform(geometry_msgs::Transform& out,
+                const V& v,
+                double qx, double qy, double qz, double qw) {
+    fillTransform(out,
+                  component_getter<V>::x(v),
+                  component_getter<V>::y(v),
+                  component_getter<V>::z(v),
+                  qx, qy, qz, qw);
+  }
+
+  template <typename V, typename Q>
+  inline geometry_msgs::Transform
+  fillTransform(geometry_msgs::Transform& out, const V& v, const Q& q) {
+    fillTransform(out,
+                  component_getter<V>::x(v),
+                  component_getter<V>::y(v),
+                  component_getter<V>::z(v),
+                  component_getter<Q>::x(q),
+                  component_getter<Q>::y(q),
+                  component_getter<Q>::z(q),
+                  component_getter<Q>::w(q));
+  }
+
   inline
   geometry_msgs::TransformStamped
   makeTransformStamped(const std::string &parent_frame,
@@ -192,6 +243,8 @@ namespace aruco_track {
     msg.transform.rotation.w = inverse.getRotation().getW();
   }
 
+  extern geometry_msgs::Transform parseTransformString(const std::string& str);
+  extern void parseTransformStringInto(geometry_msgs::Transform& out, const std::string& str);
 }
 
 #endif
