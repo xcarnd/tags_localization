@@ -49,27 +49,43 @@ using namespace cv::aruco;
 
 namespace aruco_track {
 
-  BoardEstimator::BoardEstimator(ros::NodeHandle& nh,
-				 ros::NodeHandle& parent_nh,
-				 const Settings& settings)
-    : settings_(settings),
-      node_handle_(nh),
-      parent_node_handle_(parent_nh),
+  BoardEstimator::BoardEstimator(int argc, char* argv[], const std::string& node_name)
+    : RunnableNode(argc, argv, node_name),
+      board_(parent_nh_),
+      camera_info_ready_(false),
       tf2_listener_(tf2_buffer_),
       tf2_filter_(filter_sub_, tf2_buffer_, "map", 4, nullptr) {
         
-    camera_pose_pub_ = node_handle_.advertise<geometry_msgs::PoseStamped>("camera_pose", 1);
+    camera_pose_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("camera_pose", 1);
     
-    estimated_pose_pub_ = node_handle_.advertise<geometry_msgs::PoseStamped>("estimated_pose", 1);
+    estimated_pose_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("estimated_pose", 1);
 
-    filter_sub_.subscribe(nh, "camera_pose", 4);
+    filter_sub_.subscribe(nh_, "camera_pose", 4);
 
     tf2_filter_.registerCallback(&BoardEstimator::EstimateAndPublishPosition, this);
   }
 
+  void BoardEstimator::HandleCameraInfo(const sensor_msgs::CameraInfoConstPtr& msg) {
+    camera_matrix_ = cv::Mat(3, 3, CV_64F);
+    distort_coeffs_ = cv::Mat(1, 5, CV_64F);
+    
+    for (std::size_t i = 0; i < 3; ++i) {
+      for (std::size_t j = 0; j < 3; ++j) {
+	      camera_matrix_.at<double>(i, j) = msg->K[i * 3 + j];
+      }
+    }
+
+    for (std::size_t i = 0; i < 5; ++i) {
+      distort_coeffs_.at<double>(0, i) = msg->D[i];
+    }
+
+    camera_info_ready_ = true;
+    ROS_DEBUG("Camera parameters updated.");
+  }
+
   void BoardEstimator::HandleImage(const sensor_msgs::ImageConstPtr& msg) {
-    if (!settings_.camera_info_updated()) {
-      ROS_INFO("Waiting for CameraInfo message.");
+    if (!camera_info_ready_) {
+      ROS_INFO("Camera parameters not ready. Still waiting for CameraInfo message.");
       return;
     }
     cv_bridge::CvImageConstPtr img_ptr;
@@ -95,18 +111,18 @@ namespace aruco_track {
     // processing step:
     // 1. undistort frame image
     if (undistorted.needed()) {
-      undistort(frame, undistorted, settings_.camera_matrix(), settings_.distort_coeffs());
+      undistort(frame, undistorted, camera_matrix_, distort_coeffs_);
     } else {
-      undistort(frame, helper, settings_.camera_matrix(), settings_.distort_coeffs());      
+      undistort(frame, helper, camera_matrix_, distort_coeffs_);
     }
   
     // 2. detect aruco markers
     vector<int> ids;
     vector<vector<Point2f> > corners;
     if (undistorted.needed()) {
-      detectMarkers(undistorted, settings_.markers_dict(), corners, ids);
+      detectMarkers(undistorted, board_.markers_dict(), corners, ids);
     } else {
-      detectMarkers(helper, settings_.markers_dict(), corners, ids);
+      detectMarkers(helper, board_.markers_dict(), corners, ids);
     }
 
     if (ids.size() == 0) {
@@ -115,9 +131,9 @@ namespace aruco_track {
     }
   
     // 3. estimate pose
-    int num_used = estimatePoseBoard(corners, ids, settings_.board(),
-				     settings_.camera_matrix(),
-				     settings_.distort_coeffs(),
+    int num_used = estimatePoseBoard(corners, ids, board_.board(),
+				     camera_matrix_,
+				     distort_coeffs_,
 				     rvec,
 				     tvec);
 
@@ -132,10 +148,10 @@ namespace aruco_track {
   void BoardEstimator::DrawAxisOnImage(cv::InputOutputArray& image,
 				       const::Mat& rvec, const cv::Mat& tvec) {
     cv::aruco::drawAxis(image,
-			settings_.camera_matrix(),
-			settings_.distort_coeffs(),
+			camera_matrix_,
+			distort_coeffs_,
 			rvec, tvec,
-			settings_.board_marker_length());
+			board_.marker_size());
   }
 
   /**
@@ -191,21 +207,25 @@ namespace aruco_track {
   }
 
   void BoardEstimator::Init() {
-    // listening for image
+    // listen for image
     source_sub_ =
-      node_handle_.subscribe("source", 1,
+      nh_.subscribe("source", 1,
 			      &BoardEstimator::HandleImage, this);
     ROS_INFO("Listening for camera captured image source topic.");
+
+    // listen for camera info
+    camera_info_sub_ =
+      nh_.subscribe("camera_info", 1, &BoardEstimator::HandleCameraInfo, this);
 
     // setting up static transforms
     // we will have a "board_center" frame, whose origin is at the
     // center of the board frame
     int board_num_x, board_num_y;
     double board_marker_length, board_marker_separation;
-    parent_node_handle_.getParam("board_num_x", board_num_x);
-    parent_node_handle_.getParam("board_num_y", board_num_y);
-    parent_node_handle_.getParam("board_marker_length", board_marker_length);
-    parent_node_handle_.getParam("board_marker_separation", board_marker_separation);
+    parent_nh_.getParam("board_num_x", board_num_x);
+    parent_nh_.getParam("board_num_y", board_num_y);
+    parent_nh_.getParam("board_marker_length", board_marker_length);
+    parent_nh_.getParam("board_marker_separation", board_marker_separation);
 
     // calculating the size of the board, then get the center.
     double board_width = board_num_x * board_marker_length
@@ -226,7 +246,7 @@ namespace aruco_track {
     static_tfs.push_back(tf_board_to_board_center);
 
     std::string tf_map2bc;
-    node_handle_.getParam("tf_map2bc", tf_map2bc);
+    nh_.getParam("tf_map2bc", tf_map2bc);
     geometry_msgs::TransformStamped tf_map_to_bc;
     tf_map_to_bc.header.frame_id = "map";
     tf_map_to_bc.header.stamp = ros::Time::now();

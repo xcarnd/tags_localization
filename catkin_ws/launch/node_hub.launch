@@ -1,15 +1,15 @@
 <?xml version="1.0"?>
 <launch>
 
-  <param name="/use_sim_time" value="false"/>
+  <param name="/use_sim_time" value="true"/>
   
   <group ns="hub">
 
     <param name="markers_dict" value="8" type="int"/>
-    <param name="board_num_x" value="7" type="int"/>
-    <param name="board_num_y" value="5" type="int"/>
-    <param name="board_marker_length" value="0.033" type="double"/>
-    <param name="board_marker_separation" value="0.0067" type="double"/>
+    <param name="num_markers_x" value="7" type="int"/>
+    <param name="num_markers_y" value="5" type="int"/>
+    <param name="marker_size" value="0.033" type="double"/>
+    <param name="marker_separation" value="0.0067" type="double"/>
     <include file="$(find aruco_track)/launch/estimator.launch">
     </include>
 

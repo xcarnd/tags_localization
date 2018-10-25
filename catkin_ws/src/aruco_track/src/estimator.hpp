@@ -22,8 +22,6 @@
 #ifndef _ARUCO_TRACK_ESTIMATOR_HPP_
 #define _ARUCO_TRACK_ESTIMATOR_HPP_
 
-#include <memory>
-
 #include <opencv2/core.hpp>
 
 #include <ros/ros.h>
@@ -34,17 +32,22 @@
 #include <message_filters/subscriber.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <sensor_msgs/Image.h>
+#include <sensor_msgs/CameraInfo.h>
 
-#include "settings.hpp"
+#include "board.hpp"
+#include "base_node.hpp"
 
 namespace aruco_track {
 
-  class BoardEstimator {
+  class BoardEstimator : public RunnableNode {
   private:
-    const Settings& settings_;
-    
-    ros::NodeHandle& node_handle_;
-    ros::NodeHandle& parent_node_handle_;
+    // board parameters
+    Board board_;
+
+    // parameters for performing undistortion.
+    cv::Mat camera_matrix_;
+    cv::Mat distort_coeffs_;
+    bool camera_info_ready_;
 
     // estimated camera pose w.r.t. to board frame
     ros::Publisher camera_pose_pub_;
@@ -54,6 +57,9 @@ namespace aruco_track {
 
     // subscriber for the camera captured image
     ros::Subscriber source_sub_;
+
+    // subscriber for camera info
+    ros::Subscriber camera_info_sub_;
 
     // tf broadcaster
     tf2_ros::StaticTransformBroadcaster static_transform_broadcaster_;
@@ -65,9 +71,7 @@ namespace aruco_track {
     message_filters::Subscriber<geometry_msgs::PoseStamped> filter_sub_;
     tf2_ros::MessageFilter<geometry_msgs::PoseStamped> tf2_filter_;
   public:
-    BoardEstimator(ros::NodeHandle& nh,
-		   ros::NodeHandle& parent_nh,
-		   const Settings& settings);
+    BoardEstimator(int argc, char* argv[], const std::string& node_name);
     
     bool ProcessFrame(const cv::InputArray& frame,
 		      cv::Mat& rvec, cv::Mat& tvec,
@@ -78,8 +82,9 @@ namespace aruco_track {
   
     void Init();
 
-    // subcribers
+    // subcriber callback
     void HandleImage(const sensor_msgs::ImageConstPtr& msg);
+    void HandleCameraInfo(const sensor_msgs::CameraInfoConstPtr& msg);
   private:
     void EstimatePose(const cv::Mat& rvec, const cv::Mat& tvec);
 
