@@ -24,6 +24,7 @@
 #define _ARUCO_TRACK_UTILS_HPP_
 
 #include <string>
+#include <sstream>
 
 #include <ros/ros.h>
 #include <geometry_msgs/PoseStamped.h>
@@ -105,22 +106,12 @@ namespace aruco_track {
     return q;
   }
 
-  inline void
-  fillTransform(geometry_msgs::Transform& out,
-                double tx, double ty, double tz,
-                double qx, double qy, double qz, double qw) {
-    out.translation.x = tx;
-    out.translation.y = ty;
-    out.translation.z = tz;
-    out.rotation.x = qx;
-    out.rotation.y = qy;
-    out.rotation.z = qz;
-    out.rotation.w = qw;
-  }
+  template <typename T>
+  void fillTransform(T& out, double tx, double ty, double tz, double qx, double qy, double qz, double qw);
 
-  template <typename Q>
+  template <typename T, typename Q>
   inline void
-  fillTransform(geometry_msgs::Transform& out,
+  fillTransform(T& out,
                 double tx, double ty, double tz,
                 const Q& q) {
     fillTransform(out,
@@ -131,9 +122,9 @@ namespace aruco_track {
                   component_getter<Q>::w(q));
   }
 
-  template <typename V>
+  template <typename T, typename V>
   inline void
-  fillTransform(geometry_msgs::Transform& out,
+  fillTransform(T& out,
                 const V& v,
                 double qx, double qy, double qz, double qw) {
     fillTransform(out,
@@ -143,9 +134,9 @@ namespace aruco_track {
                   qx, qy, qz, qw);
   }
 
-  template <typename V, typename Q>
-  inline geometry_msgs::Transform
-  fillTransform(geometry_msgs::Transform& out, const V& v, const Q& q) {
+  template <typename T, typename V, typename Q>
+  inline void
+  fillTransform(T& out, const V& v, const Q& q) {
     fillTransform(out,
                   component_getter<V>::x(v),
                   component_getter<V>::y(v),
@@ -243,8 +234,58 @@ namespace aruco_track {
     msg.transform.rotation.w = inverse.getRotation().getW();
   }
 
-  extern geometry_msgs::Transform parseTransformString(const std::string& str);
-  extern void parseTransformStringInto(geometry_msgs::Transform& out, const std::string& str);
+  template <>
+  inline void
+  fillTransform<geometry_msgs::Transform>(geometry_msgs::Transform& out,
+                double tx, double ty, double tz,
+                double qx, double qy, double qz, double qw) {
+    out.translation.x = tx;
+    out.translation.y = ty;
+    out.translation.z = tz;
+    out.rotation.x = qx;
+    out.rotation.y = qy;
+    out.rotation.z = qz;
+    out.rotation.w = qw;
+  }
+
+  template <>
+  inline void
+  fillTransform<tf2::Transform>(tf2::Transform& out,
+                double tx, double ty, double tz,
+                double qx, double qy, double qz, double qw) {
+    out.getOrigin().setX(tx);
+    out.getOrigin().setY(ty);
+    out.getOrigin().setZ(tz);
+    out.getRotation().setX(qx);
+    out.getRotation().setY(qy);
+    out.getRotation().setZ(qz);
+    out.getRotation().setW(qw);
+  }
+
+  template <typename T>
+  T parseTransformString(const std::string& str) {
+    std::istringstream iss(str);
+    double tx, ty, tz, r, p, y;
+    iss>>tx>>ty>>tz>>r>>p>>y;
+
+    T ret;
+    fillTransform(
+      ret,
+      tx, ty, tz,
+      makeTf2QuaternionFromRPYDegree(r, p, y));
+    return ret;
+  }
+
+  template <typename T>
+  void parseTransformStringInto(T& out, const std::string& str) {
+    std::istringstream iss(str);
+    double tx, ty, tz, r, p, y;
+    iss>>tx>>ty>>tz>>r>>p>>y;
+        
+    fillTransform(out,
+      tx, ty, tz,
+      makeTf2QuaternionFromRPYDegree(r, p, y));
+  }
 }
 
 #endif

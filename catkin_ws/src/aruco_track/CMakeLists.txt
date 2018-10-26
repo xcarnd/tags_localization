@@ -143,7 +143,7 @@ include_directories(
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(aruco_track
-  src/aruco_track.cpp src/estimator.cpp src/frame_def.cpp src/utils.cpp)
+  src/aruco_track.cpp src/estimator.cpp)
 
 add_executable(rviz_addons
   src/rviz_addons.cpp)

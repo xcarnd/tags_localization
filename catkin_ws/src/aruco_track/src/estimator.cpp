@@ -28,9 +28,6 @@
 #include <cv_bridge/cv_bridge.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TransformStamped.h>
-#include <tf2/utils.h>
-#include <tf2_ros/static_transform_broadcaster.h>
-#include <tf2_ros/transform_broadcaster.h>
 
 #include <opencv2/imgproc.hpp>
 #include <opencv2/aruco.hpp>
@@ -40,7 +37,6 @@
 
 #include "utils.hpp"
 #include "estimator.hpp"
-#include "frame_def.hpp"
 
 using namespace std;
 using namespace cv;
@@ -199,9 +195,17 @@ namespace aruco_track {
   }
 
   void BoardEstimator::EstimateAndPublishPosition(const geometry_msgs::PoseStampedConstPtr& msg) {
+    // get body center from camera center
+    tf2::Transform tf;
+    tf2::fromMsg(*msg, tf);
+    geometry_msgs::PoseStamped body;
+    body.header.stamp = msg->header.stamp;
+    body.header.frame_id = msg->header.frame_id;
+    tf2::toMsg(tf_camera_to_body_ * tf, body.pose);
+
+    // then get body center w.r.t. map frame
     geometry_msgs::PoseStamped estimated_pose;
-    
-    tf2_buffer_.transform(*msg, estimated_pose, "map");
+    tf2_buffer_.transform(body, estimated_pose, "map");
     
     this->estimated_pose_pub_.publish(estimated_pose);
   }
@@ -230,16 +234,21 @@ namespace aruco_track {
 							 0, 0, 0, 1);
     static_tfs.push_back(tf_board_to_board_center);
 
-    std::string tf_map2bc;
-    nh_.getParam("tf_map2bc", tf_map2bc);
+    std::string tf_map2boardcenter;
+    nh_.getParam("tf_map2boardcenter", tf_map2boardcenter);
     geometry_msgs::TransformStamped tf_map_to_bc;
     tf_map_to_bc.header.frame_id = "map";
     tf_map_to_bc.header.stamp = ros::Time::now();
     tf_map_to_bc.child_frame_id = "board_center";
-    parseTransformStringInto(tf_map_to_bc.transform, tf_map2bc);
+    parseTransformStringInto(tf_map_to_bc.transform, tf_map2boardcenter);
     static_tfs.push_back(tf_map_to_bc);
 
     static_transform_broadcaster_.sendTransform(static_tfs);
+
+    std::string tf_camera2body;
+    nh_.getParam("tf_camera2body", tf_camera2body);
+
+    parseTransformStringInto(tf_camera_to_body_, tf_camera2body);
   }
 
 }

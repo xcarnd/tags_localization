@@ -29,6 +29,7 @@
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2_ros/transform_listener.h>
 #include <tf2_ros/message_filter.h>
+#include <tf2/utils.h>
 #include <message_filters/subscriber.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <sensor_msgs/Image.h>
@@ -70,6 +71,9 @@ namespace aruco_track {
     tf2_ros::TransformListener tf2_listener_;
     message_filters::Subscriber<geometry_msgs::PoseStamped> filter_sub_;
     tf2_ros::MessageFilter<geometry_msgs::PoseStamped> tf2_filter_;
+
+    // transform from camera center to body center
+    tf2::Transform tf_camera_to_body_;
   public:
     BoardEstimator(int argc, char* argv[], const std::string& node_name);
     
