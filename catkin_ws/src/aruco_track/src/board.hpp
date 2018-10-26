@@ -84,9 +84,10 @@ namespace aruco_track {
       markers_dict_ = cv::aruco::getPredefinedDictionary(cv::aruco::PREDEFINED_DICTIONARY_NAME(dict));
       board_ = cv::aruco::GridBoard::create(num_markers_x_,
                                             num_markers_y_,
-					                        marker_size_,
-					                        marker_separation_,
+					    marker_size_,
+					    marker_separation_,
                       	                    markers_dict_);
+      
       width_ = num_markers_x_ * marker_size_ + (num_markers_x_ - 1) * marker_separation_;
       height_ = num_markers_y_ * marker_size_ + (num_markers_y_ - 1) * marker_separation_;
       center_x_ = width_ / 2;

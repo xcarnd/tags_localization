@@ -220,28 +220,13 @@ namespace aruco_track {
     // setting up static transforms
     // we will have a "board_center" frame, whose origin is at the
     // center of the board frame
-    int board_num_x, board_num_y;
-    double board_marker_length, board_marker_separation;
-    parent_nh_.getParam("board_num_x", board_num_x);
-    parent_nh_.getParam("board_num_y", board_num_y);
-    parent_nh_.getParam("board_marker_length", board_marker_length);
-    parent_nh_.getParam("board_marker_separation", board_marker_separation);
-
-    // calculating the size of the board, then get the center.
-    double board_width = board_num_x * board_marker_length
-      + (board_num_x - 1) * board_marker_separation;
-    double board_height = board_num_y * board_marker_length
-      + (board_num_y - 1) * board_marker_separation;
-    double center_x = board_width / 2;
-    double center_y = board_height / 2;
-
     ROS_INFO("board width: %.2f, board height: %.2f. Creating static transform from board -> board_center at the center of the board.",
-	      board_width, board_height);
+	     board_.width(), board_.height());
 
     std::vector<geometry_msgs::TransformStamped> static_tfs;
 
     auto tf_board_to_board_center = makeTransformStamped("board_center", "board",
-							 -center_x, -center_y, 0,
+							 -board_.center_x(), -board_.center_y(), 0,
 							 0, 0, 0, 1);
     static_tfs.push_back(tf_board_to_board_center);
 

@@ -57,42 +57,13 @@ namespace aruco_track {
 
   void RVizAddonsNode::HandlePose(const geometry_msgs::PoseStampedConstPtr& msg) {
     visualization_msgs::MarkerArray markerArray;
-    // marker for the pose
-    //
-    visualization_msgs::Marker marker;
-    marker.header.frame_id = "map";
-    marker.header.stamp = ros::Time::now();
-    marker.type = visualization_msgs::Marker::TRIANGLE_LIST;
-    marker.action = visualization_msgs::Marker::MODIFY;
-    marker.pose.position = msg->pose.position;
-    // the orientation part of msg is defined in the frame of fcu,
-    // extra processing is needed to make the marker heading in the right direction.
-    auto frame_q = makeTf2QuaternionFromRPYDegree(0, 0, 90);
+
     tf2::Quaternion pose_q = {
           msg->pose.orientation.x,
           msg->pose.orientation.y,
           msg->pose.orientation.z,
           msg->pose.orientation.w
     };
-    auto marker_q = frame_q * pose_q;
-    marker.pose.orientation.x = marker_q.getX();
-    marker.pose.orientation.y = marker_q.getY();
-    marker.pose.orientation.z = marker_q.getZ();
-    marker.pose.orientation.w = marker_q.getW();
-    
-    marker.points = {
-      makePoint(0.5, 0, 0), makePoint(-0.5, 0, 0), makePoint(0, 0.5 * 1.732, 0),
-      makePoint(0, 0, 0), makePoint(0, 0.5 * 1.732, 0), makePoint(0, 0, 0.5)
-    };
-    marker.colors = {
-      makeRGBA(1, 0, 0, 1), makeRGBA(1, 0, 0, 1), makeRGBA(0, 1, 0, 1),
-      makeRGBA(1, 0, 0, 1), makeRGBA(0, 1, 0, 1), makeRGBA(0, 0, 1, 1),
-    };
-    marker.scale.x = 0.2;
-    marker.scale.y = 0.2;
-    marker.scale.z = 0.2;
-
-    markerArray.markers.push_back(marker);
 
     // text for position and orientation (in euler angles)
     visualization_msgs::Marker text_marker;
