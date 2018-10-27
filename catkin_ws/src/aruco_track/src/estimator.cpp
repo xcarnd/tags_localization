@@ -24,6 +24,8 @@
 // Detect, estimate pose from board configuration and broadcast
 // tf2 messages.
 
+#include <iostream>
+
 #include <ros/ros.h>
 #include <cv_bridge/cv_bridge.h>
 #include <geometry_msgs/PoseStamped.h>
@@ -196,7 +198,6 @@ namespace aruco_track {
 
   void BoardEstimator::EstimateAndPublishPosition(const geometry_msgs::PoseStampedConstPtr& msg) {
     // get body center from camera center
-    tf2::Vector3 v {msg->pose.position.x, msg->pose.position.y, msg->pose.position.z};
     tf2::Transform tf (
       tf2::Quaternion(msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z, msg->pose.orientation.w),
       tf2::Vector3(msg->pose.position.x, msg->pose.position.y, msg->pose.position.z)

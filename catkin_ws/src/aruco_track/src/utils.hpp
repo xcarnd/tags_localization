@@ -253,13 +253,9 @@ namespace aruco_track {
   fillTransform<tf2::Transform>(tf2::Transform& out,
                 double tx, double ty, double tz,
                 double qx, double qy, double qz, double qw) {
-    out.getOrigin().setX(tx);
-    out.getOrigin().setY(ty);
-    out.getOrigin().setZ(tz);
-    out.getRotation().setX(qx);
-    out.getRotation().setY(qy);
-    out.getRotation().setZ(qz);
-    out.getRotation().setW(qw);
+    ROS_ERROR ("<<<%.2f %.2f %.2f %.2f %.2f %.2f %.2f", tx, ty, tz, qx, qy, qz, qw);
+    out.setOrigin(tf2::Vector3(tx, ty, tz));
+    out.setRotation(tf2::Quaternion(qx, qy, qz, qw));
   }
 
   template <typename T>
@@ -281,7 +277,6 @@ namespace aruco_track {
     std::istringstream iss(str);
     double tx, ty, tz, r, p, y;
     iss>>tx>>ty>>tz>>r>>p>>y;
-        
     fillTransform(out,
       tx, ty, tz,
       makeTf2QuaternionFromRPYDegree(r, p, y));
